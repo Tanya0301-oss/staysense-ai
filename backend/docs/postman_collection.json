@@ -1,0 +1,284 @@
+{
+  "info": {
+    "name": "Homestay Review Sentiment Classifier",
+    "description": "API collection for the Homestay Guest Review Sentiment Classifier backend. Covers health checks, single review analysis, batch review analysis, and validation edge cases.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Info",
+      "item": [
+        {
+          "name": "Root — Service Info",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/",
+            "header": []
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"service\": \"Homestay Review Sentiment Classifier\",\n  \"version\": \"1.0.0\",\n  \"endpoints\": {\n    \"analyze\": \"POST /api/reviews/analyze\",\n    \"health\": \"GET  /api/reviews/health\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/reviews/health",
+            "header": []
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"status\": \"healthy\",\n  \"timestamp\": \"2026-06-04T18:00:00.000Z\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Single Review Analysis",
+      "item": [
+        {
+          "name": "Analyze — Positive Review",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/reviews/analyze",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review\": \"The host was extremely friendly and helpful. Made us feel right at home.\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Positive",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"requestId\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n  \"count\": 1,\n  \"data\": [\n    {\n      \"review\": \"The host was extremely friendly and helpful. Made us feel right at home.\",\n      \"sentiment\": \"Positive\",\n      \"theme\": \"Host\",\n      \"response\": \"Thank you for your kind words about our host — we look forward to welcoming you again.\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Analyze — Negative Review",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/reviews/analyze",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review\": \"The room was dirty and the bathroom had mold. Very disappointing.\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Negative",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"requestId\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n  \"count\": 1,\n  \"data\": [\n    {\n      \"review\": \"The room was dirty and the bathroom had mold. Very disappointing.\",\n      \"sentiment\": \"Negative\",\n      \"theme\": \"Cleanliness\",\n      \"response\": \"We sincerely apologize for the cleanliness issues and have addressed this with our housekeeping team.\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Analyze — Neutral Review",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/reviews/analyze",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review\": \"The location was okay, about a 20 minute walk from the center. Nothing special but not bad.\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Neutral",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"requestId\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n  \"count\": 1,\n  \"data\": [\n    {\n      \"review\": \"The location was okay, about a 20 minute walk from the center. Nothing special but not bad.\",\n      \"sentiment\": \"Neutral\",\n      \"theme\": \"Location\",\n      \"response\": \"Thank you for your feedback — we are exploring transportation options to improve convenience for our guests.\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Batch Review Analysis",
+      "item": [
+        {
+          "name": "Batch — Array Format",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/reviews/analyze",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviews\": [\n    \"The host was extremely friendly and helpful.\",\n    \"Food was bland and breakfast options were very limited.\",\n    \"Great value for money, would definitely come back!\"\n  ]\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Batch Result",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"requestId\": \"d4e5f6a7-b8c9-0123-defa-234567890123\",\n  \"count\": 3,\n  \"data\": [\n    {\n      \"review\": \"The host was extremely friendly and helpful.\",\n      \"sentiment\": \"Positive\",\n      \"theme\": \"Host\",\n      \"response\": \"Thank you for your kind words about our host — we look forward to welcoming you again.\"\n    },\n    {\n      \"review\": \"Food was bland and breakfast options were very limited.\",\n      \"sentiment\": \"Negative\",\n      \"theme\": \"Food\",\n      \"response\": \"We apologize for the dining experience and are reviewing our menu to better serve our guests.\"\n    },\n    {\n      \"review\": \"Great value for money, would definitely come back!\",\n      \"sentiment\": \"Positive\",\n      \"theme\": \"Value\",\n      \"response\": \"We're thrilled you found great value in your stay and look forward to your return visit.\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Batch — Newline-Separated String",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/reviews/analyze",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviews\": \"The host was extremely friendly and helpful.\\nFood was bland and breakfast options were limited.\\nGreat location, right next to the beach!\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Batch from string",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"requestId\": \"e5f6a7b8-c9d0-1234-efab-345678901234\",\n  \"count\": 3,\n  \"data\": [\n    {\n      \"review\": \"The host was extremely friendly and helpful.\",\n      \"sentiment\": \"Positive\",\n      \"theme\": \"Host\",\n      \"response\": \"Thank you for your kind words about our host — we look forward to welcoming you again.\"\n    },\n    {\n      \"review\": \"Food was bland and breakfast options were limited.\",\n      \"sentiment\": \"Negative\",\n      \"theme\": \"Food\",\n      \"response\": \"We apologize for the dining experience and are reviewing our menu to better serve our guests.\"\n    },\n    {\n      \"review\": \"Great location, right next to the beach!\",\n      \"sentiment\": \"Positive\",\n      \"theme\": \"Location\",\n      \"response\": \"We're glad you enjoyed our prime location near the beach!\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validation & Error Cases",
+      "item": [
+        {
+          "name": "Error — Empty Body",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/reviews/analyze",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "response": [
+            {
+              "name": "400 Bad Request — Invalid Input",
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INVALID_INPUT\",\n    \"message\": \"Request body must contain \\\"review\\\" (string) or \\\"reviews\\\" (string | string[])\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Error — Review Too Short",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/reviews/analyze",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review\": \"Ok\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "400 Bad Request — Too Short",
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"REVIEW_TOO_SHORT\",\n    \"message\": \"1 review(s) are too short (minimum 5 characters). First offending review: \\\"Ok\\\"\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Error — Empty Reviews String",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/reviews/analyze",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviews\": \"\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "400 Bad Request — Empty",
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"EMPTY_INPUT\",\n    \"message\": \"No reviews provided\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Error — 404 Not Found",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/nonexistent",
+            "header": []
+          },
+          "response": [
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"Route not found\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
