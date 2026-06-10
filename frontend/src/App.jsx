@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import DashboardLayout from './layouts/DashboardLayout';
 import ReviewAnalyzer from './pages/ReviewAnalyzer';
 import Insights from './pages/Insights';
+import History from './pages/History';
 import Help from './pages/Help';
 import './App.css';
 
@@ -9,6 +10,14 @@ function App() {
   const [currentPage, setCurrentPage] = useState('analyzer');
   const [reviewsData, setReviewsData] = useState([]);
   const [inputText, setInputText] = useState('');
+
+  // Handle loading a session from history
+  const handleLoadSessionFromHistory = (session) => {
+    if (session.reviews && session.reviews.length > 0) {
+      setReviewsData(session.reviews);
+      setCurrentPage('analyzer'); // Navigate back to analyzer
+    }
+  };
 
   // Page renderer helper
   const renderPage = () => {
@@ -24,6 +33,8 @@ function App() {
         );
       case 'insights':
         return <Insights reviewsData={reviewsData} />;
+      case 'history':
+        return <History onLoadSession={handleLoadSessionFromHistory} />;
       case 'help':
         return (
           <Help 

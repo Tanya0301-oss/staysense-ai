@@ -1,7 +1,13 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
 @import "tailwindcss";
 
 :root {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: #FAF9F6;
+  color: #111111;
 }
 
 body, button, input, select, textarea {
@@ -10,8 +16,8 @@ body, button, input, select, textarea {
 
 /* Custom scrollbars to look premium and minimal like Notion/Linear */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -19,12 +25,12 @@ body, button, input, select, textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #e2e8f0;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #cbd5e1;
 }
 
 /* Custom styles for charts or extra utilities */
@@ -33,4 +39,20 @@ body, button, input, select, textarea {
   border-radius: 0.375rem !important;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
   font-family: inherit !important;
+}
+
+/* Fade-in animation used across pages */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out both;
 }

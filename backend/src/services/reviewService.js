@@ -185,10 +185,314 @@ async function deleteSession(requestId) {
   };
 }
 
+// ── Intelligence Layer Operations ────────────────────────
+
+/**
+ * Derives the Risk Score for a review based on its sentiment and language.
+ */
+function getRiskScore(row) {
+  if (row.error) return 'N/A';
+  const sentiment = row.sentiment;
+  const text = (row.review || '').toLowerCase();
+  
+  if (sentiment === 'Positive') {
+    return 'Low Risk';
+  }
+  
+  if (sentiment === 'Neutral') {
+    const mediumRiskTriggers = ["unprofessional", "slow", "delay", "poor", "dirty", "smell", "noisy", "loud", "expensive", "wait"];
+    const hasTrigger = mediumRiskTriggers.some(word => text.includes(word));
+    return hasTrigger ? 'Medium Risk' : 'Low Risk';
+  }
+  
+  if (sentiment === 'Negative') {
+    const highRiskTriggers = ["terrible", "worst", "dirty", "ruined", "disaster", "danger", "unprofessional", "rude", "cancel", "refund", "never", "charge", "stole", "smell", "scam", "leak", "bug", "insect", "broken", "cheated", "liar"];
+    const hasTrigger = highRiskTriggers.some(word => text.includes(word)) || text.length > 80;
+    return hasTrigger ? 'High Risk' : 'Medium Risk';
+  }
+  
+  return 'Low Risk';
+}
+
+/**
+ * Generate data-driven alerts from historical reviews in the last 14 days.
+ */
+async function getAlertsService() {
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+  const reviews14Days = await Review.find({
+    error: null,
+    createdAt: { $gte: fourteenDaysAgo }
+  }).sort({ createdAt: -1 }).lean();
+
+  const thisWeekReviews = reviews14Days.filter(r => r.createdAt >= sevenDaysAgo);
+  const lastWeekReviews = reviews14Days.filter(r => r.createdAt < sevenDaysAgo);
+
+  const totalThisWeek = thisWeekReviews.length;
+  const negThisWeek = thisWeekReviews.filter(r => r.sentiment === 'Negative').length;
+  const negPctThisWeek = totalThisWeek > 0 ? (negThisWeek / totalThisWeek) * 100 : 0;
+
+  const totalLastWeek = lastWeekReviews.length;
+  const negLastWeek = lastWeekReviews.filter(r => r.sentiment === 'Negative').length;
+  const negPctLastWeek = totalLastWeek > 0 ? (negLastWeek / totalLastWeek) * 100 : 0;
+
+  const alerts = [];
+
+  // Rule 1: More than 40% of reviews are negative this week
+  if (totalThisWeek >= 5 && negPctThisWeek > 40) {
+    alerts.push({
+      id: "alert_more_than_40_percent_negative",
+      type: "negative_high_pct",
+      title: "More than 40% of reviews are negative",
+      description: `Critical: Negative sentiment stands at ${negPctThisWeek.toFixed(0)}% this week with ${negThisWeek} negative reviews.`,
+      severity: "High",
+      createdAt: now
+    });
+  }
+
+  // Rule 2: Negative sentiment increased significantly this week
+  if (totalThisWeek >= 3 && totalLastWeek >= 3 && (negPctThisWeek - negPctLastWeek) >= 15) {
+    alerts.push({
+      id: "alert_negative_sentiment_increased",
+      type: "negative_trend_up",
+      title: "Negative sentiment increased significantly this week",
+      description: `Negative feedback rose from ${negPctLastWeek.toFixed(0)}% last week to ${negPctThisWeek.toFixed(0)}% this week.`,
+      severity: "Medium",
+      createdAt: now
+    });
+  }
+
+  // Rule 3: Cleanliness complaints are rising
+  const cleanNegThisWeek = thisWeekReviews.filter(r => r.theme === 'Cleanliness' && r.sentiment === 'Negative').length;
+  const cleanNegLastWeek = lastWeekReviews.filter(r => r.theme === 'Cleanliness' && r.sentiment === 'Negative').length;
+  if (cleanNegThisWeek > cleanNegLastWeek && cleanNegThisWeek >= 2) {
+    alerts.push({
+      id: "alert_cleanliness_complaints_rising",
+      type: "cleanliness_complaints_rising",
+      title: "Cleanliness complaints are rising",
+      description: `Cleanliness complaints increased to ${cleanNegThisWeek} this week compared to ${cleanNegLastWeek} last week.`,
+      severity: "High",
+      createdAt: now
+    });
+  }
+
+  // Rule 4: High-risk reviews detected
+  const highRiskCount = thisWeekReviews.filter(r => getRiskScore(r) === 'High Risk').length;
+  if (highRiskCount > 0) {
+    alerts.push({
+      id: "alert_high_risk_reviews_detected",
+      type: "high_risk_reviews",
+      title: "High-risk reviews detected",
+      description: `Action Required: We identified ${highRiskCount} high-risk guest review(s) this week.`,
+      severity: "High",
+      createdAt: now
+    });
+  }
+
+  // Rule 5: Sudden spike in a specific complaint category
+  const themes = ["Food", "Host", "Location", "Cleanliness", "Value", "Experience"];
+  themes.forEach(theme => {
+    const negThemeThisWeek = thisWeekReviews.filter(r => r.theme === theme && r.sentiment === 'Negative').length;
+    const negThemeLastWeek = lastWeekReviews.filter(r => r.theme === theme && r.sentiment === 'Negative').length;
+    if (negThemeThisWeek - negThemeLastWeek >= 2) {
+      alerts.push({
+        id: `alert_spike_${theme.toLowerCase()}`,
+        type: `spike_${theme.toLowerCase()}`,
+        title: `Sudden spike in ${theme} complaints`,
+        description: `Alert: Negative feedback regarding ${theme} rose to ${negThemeThisWeek} this week vs ${negThemeLastWeek} last week.`,
+        severity: "Medium",
+        createdAt: now
+      });
+    }
+  });
+
+  return alerts;
+}
+
+/**
+ * Generate weekly summary statistics from MongoDB history.
+ */
+async function getWeeklySummaryService() {
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  let reviews = await Review.find({
+    error: null,
+    createdAt: { $gte: sevenDaysAgo }
+  }).lean();
+
+  // Fallback to latest reviews if there are none in the last 7 days (to make demo/local dev functional)
+  let isFallback = false;
+  if (reviews.length === 0) {
+    reviews = await Review.find({ error: null }).sort({ createdAt: -1 }).limit(50).lean();
+    isFallback = true;
+  }
+
+  const totalReviews = reviews.length;
+  const positive = reviews.filter(r => r.sentiment === 'Positive').length;
+  const neutral = reviews.filter(r => r.sentiment === 'Neutral').length;
+  const negative = reviews.filter(r => r.sentiment === 'Negative').length;
+
+  const positivePct = totalReviews > 0 ? Math.round((positive / totalReviews) * 100) : 0;
+  const neutralPct = totalReviews > 0 ? Math.round((neutral / totalReviews) * 100) : 0;
+  const negativePct = totalReviews > 0 ? Math.round((negative / totalReviews) * 100) : 0;
+
+  const themeCounts = {};
+  const complaintCounts = {};
+  const appreciatedCounts = {};
+
+  reviews.forEach(r => {
+    themeCounts[r.theme] = (themeCounts[r.theme] || 0) + 1;
+    if (r.sentiment === 'Negative' || r.sentiment === 'Neutral') {
+      complaintCounts[r.theme] = (complaintCounts[r.theme] || 0) + 1;
+    }
+    if (r.sentiment === 'Positive') {
+      appreciatedCounts[r.theme] = (appreciatedCounts[r.theme] || 0) + 1;
+    }
+  });
+
+  const getTopKey = (obj) => {
+    let topKey = 'None';
+    let maxVal = 0;
+    for (const [key, val] of Object.entries(obj)) {
+      if (val > maxVal) {
+        maxVal = val;
+        topKey = key;
+      }
+    }
+    return topKey;
+  };
+
+  const topTheme = getTopKey(themeCounts);
+  const mostCommonComplaint = getTopKey(complaintCounts);
+  const mostAppreciatedCategory = getTopKey(appreciatedCounts);
+
+  let overallHealth = "Good";
+  if (totalReviews === 0) {
+    overallHealth = "No Data";
+  } else if (negativePct > 30) {
+    overallHealth = "Poor";
+  } else if (negativePct > 15 || positivePct < 60) {
+    overallHealth = "Average";
+  } else if (positivePct >= 75) {
+    overallHealth = "Excellent";
+  } else {
+    overallHealth = "Good";
+  }
+
+  // Calculate comparison against previous session
+  const latestSessions = await AnalysisSession.find()
+    .sort({ createdAt: -1 })
+    .limit(2)
+    .populate("reviews")
+    .lean();
+
+  let previousPositivePct = null;
+  let currentPositivePct = positivePct;
+  let change = null;
+  let trend = "Stable";
+
+  if (latestSessions.length >= 2) {
+    // Current session positive rate
+    const curReviews = latestSessions[0].reviews || [];
+    const curValid = curReviews.filter(r => !r.error);
+    const curTotal = curValid.length;
+    const curPos = curValid.filter(r => r.sentiment === 'Positive').length;
+    currentPositivePct = curTotal > 0 ? Math.round((curPos / curTotal) * 100) : 0;
+
+    // Previous session positive rate
+    const prevReviews = latestSessions[1].reviews || [];
+    const prevValid = prevReviews.filter(r => !r.error);
+    const prevTotal = prevValid.length;
+    const prevPos = prevValid.filter(r => r.sentiment === 'Positive').length;
+    previousPositivePct = prevTotal > 0 ? Math.round((prevPos / prevTotal) * 100) : 0;
+
+    change = currentPositivePct - previousPositivePct;
+    if (change > 2) {
+      trend = "Trend Up";
+    } else if (change < -2) {
+      trend = "Trend Down";
+    } else {
+      trend = "Stable";
+    }
+  }
+
+  return {
+    totalReviews,
+    positivePct,
+    neutralPct,
+    negativePct,
+    topTheme,
+    mostCommonComplaint,
+    mostAppreciatedCategory,
+    overallHealth,
+    isFallback,
+    trendInfo: {
+      currentPositivePct,
+      previousPositivePct,
+      change: change !== null ? (change > 0 ? `+${change}` : `${change}`) : null,
+      changeVal: change,
+      trend
+    }
+  };
+}
+
+/**
+ * Retrieve sentiment trends from the latest 5 sessions.
+ */
+async function getTrendsService() {
+  const sessions = await AnalysisSession.find()
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .populate("reviews")
+    .lean();
+
+  if (sessions.length < 2) {
+    return [];
+  }
+
+  // Reverse to chronological order (oldest first)
+  const chronological = [...sessions].reverse();
+
+  return chronological.map((session, index) => {
+    const reviews = session.reviews || [];
+    const validReviews = reviews.filter(r => !r.error);
+    const total = validReviews.length;
+
+    const positive = validReviews.filter(r => r.sentiment === 'Positive').length;
+    const neutral = validReviews.filter(r => r.sentiment === 'Neutral').length;
+    const negative = validReviews.filter(r => r.sentiment === 'Negative').length;
+
+    const positivePct = total > 0 ? Math.round((positive / total) * 100) : 0;
+    const neutralPct = total > 0 ? Math.round((neutral / total) * 100) : 0;
+    const negativePct = total > 0 ? Math.round((negative / total) * 100) : 0;
+
+    const dateStr = new Date(session.createdAt).toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric'
+    });
+
+    return {
+      sessionId: session.requestId,
+      name: `Session ${index + 1}`,
+      date: dateStr,
+      positivePct,
+      neutralPct,
+      negativePct,
+      totalReviews: total
+    };
+  });
+}
+
 module.exports = {
   saveAnalysis,
   listSessions,
   getSessionByRequestId,
   getStats,
   deleteSession,
+  getAlertsService,
+  getWeeklySummaryService,
+  getTrendsService,
 };

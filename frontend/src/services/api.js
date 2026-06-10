@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace('localhost', '127.0.0.1');
 const API_TIMEOUT_MS = 60000; // 60 second timeout for batch processing
 
 /**
@@ -143,6 +143,45 @@ export async function deleteSessionApi(requestId) {
   });
   if (!response.ok) {
     throw new Error(`Failed to delete session (HTTP ${response.status})`);
+  }
+  return response.json();
+}
+
+/**
+ * Service to retrieve dynamic alerts generated from MongoDB data.
+ * 
+ * @returns {Promise<{success: boolean, data: Array}>}
+ */
+export async function getAlertsApi() {
+  const response = await fetch(`${API_BASE_URL}/api/history/alerts`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch alerts (HTTP ${response.status})`);
+  }
+  return response.json();
+}
+
+/**
+ * Service to retrieve weekly summary stats.
+ * 
+ * @returns {Promise<{success: boolean, data: object}>}
+ */
+export async function getWeeklySummaryApi() {
+  const response = await fetch(`${API_BASE_URL}/api/history/weekly-summary`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch weekly summary (HTTP ${response.status})`);
+  }
+  return response.json();
+}
+
+/**
+ * Service to retrieve daily historical trends.
+ * 
+ * @returns {Promise<{success: boolean, data: Array}>}
+ */
+export async function getTrendsApi() {
+  const response = await fetch(`${API_BASE_URL}/api/history/trends`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch trends (HTTP ${response.status})`);
   }
   return response.json();
 }

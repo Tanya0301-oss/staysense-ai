@@ -3,6 +3,9 @@ const {
   getSessionByRequestId,
   getStats,
   deleteSession,
+  getAlertsService,
+  getWeeklySummaryService,
+  getTrendsService,
 } = require("../services/reviewService");
 const { isConnected } = require("../config/database");
 const AppError = require("../utils/AppError");
@@ -118,4 +121,78 @@ async function removeSession(req, res, next) {
   }
 }
 
-module.exports = { getSessions, getSession, getStatsSummary, removeSession };
+/**
+ * GET /api/history/alerts
+ *
+ * Retrieve dynamic, data-driven alerts from historical reviews.
+ */
+async function getAlerts(req, res, next) {
+  try {
+    if (!isConnected()) {
+      throw new AppError("Database is not connected", 503, "DB_UNAVAILABLE");
+    }
+
+    const alerts = await getAlertsService();
+
+    res.status(200).json({
+      success: true,
+      data: alerts,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/history/weekly-summary
+ *
+ * Retrieve weekly management summary statistics.
+ */
+async function getWeeklySummary(req, res, next) {
+  try {
+    if (!isConnected()) {
+      throw new AppError("Database is not connected", 503, "DB_UNAVAILABLE");
+    }
+
+    const summary = await getWeeklySummaryService();
+
+    res.status(200).json({
+      success: true,
+      data: summary,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/history/trends
+ *
+ * Retrieve daily historical trend data for charts.
+ */
+async function getTrends(req, res, next) {
+  try {
+    if (!isConnected()) {
+      throw new AppError("Database is not connected", 503, "DB_UNAVAILABLE");
+    }
+
+    const trends = await getTrendsService();
+
+    res.status(200).json({
+      success: true,
+      data: trends,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  getSessions,
+  getSession,
+  getStatsSummary,
+  removeSession,
+  getAlerts,
+  getWeeklySummary,
+  getTrends,
+};
