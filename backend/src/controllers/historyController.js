@@ -4,6 +4,7 @@ const {
   getStats,
   deleteSession,
   getAlertsService,
+  markAlertsReadService,
   getWeeklySummaryService,
   getTrendsService,
 } = require("../services/reviewService");
@@ -187,12 +188,41 @@ async function getTrends(req, res, next) {
   }
 }
 
+/**
+ * POST /api/history/alerts/read
+ *
+ * Mark one or more alerts as read, persisted in MongoDB.
+ * Body: { alertIds: string[] }
+ */
+async function markAlertsRead(req, res, next) {
+  try {
+    if (!isConnected()) {
+      throw new AppError("Database is not connected", 503, "DB_UNAVAILABLE");
+    }
+
+    const { alertIds } = req.body;
+    if (!Array.isArray(alertIds)) {
+      throw new AppError("alertIds must be an array", 400, "INVALID_INPUT");
+    }
+
+    await markAlertsReadService(alertIds);
+
+    res.status(200).json({
+      success: true,
+      message: `Marked ${alertIds.length} alert(s) as read`,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getSessions,
   getSession,
   getStatsSummary,
   removeSession,
   getAlerts,
+  markAlertsRead,
   getWeeklySummary,
   getTrends,
 };

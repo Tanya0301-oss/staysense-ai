@@ -151,12 +151,9 @@ export default function ReviewAnalyzer({ reviewsData, setReviewsData, inputText,
     <div className="space-y-8 animate-fade-in">
       {/* Page Header */}
       <div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Trishul Eco-Homestays</span>
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">Guest Review Intelligence Tool</h1>
-        <p className="mt-2 text-gray-700 max-w-2xl text-sm md:text-base leading-relaxed">
-          Analyze guest reviews using AI-powered sentiment and theme classification. Provide structured data and instant response drafting for your team.
+        <h1 className="text-2xl font-bold tracking-tight text-[#111827] md:text-3xl">Guest Review Analysis</h1>
+        <p className="mt-1.5 text-[#374151] max-w-2xl text-sm md:text-base leading-relaxed">
+          Analyze guest reviews using AI-powered sentiment and theme classification.
         </p>
       </div>
 
@@ -167,19 +164,16 @@ export default function ReviewAnalyzer({ reviewsData, setReviewsData, inputText,
             <label className="text-xs font-bold uppercase tracking-wider text-gray-700 block">
               Enter Guest Reviews
             </label>
-            <div className="text-[11px] text-gray-600 font-medium">
-              Supports single or batch analysis (one review per line)
-            </div>
           </div>
 
           <div className="relative">
             <textarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={`Paste guest reviews here...\nOne review per line for batch analysis.`}
+              placeholder={`Paste guest reviews here...\n\nExample:\nThe host was very welcoming and helpful.\nThe room was clean and comfortable.`}
               disabled={isLoading}
               rows={5}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:bg-white focus:border-gray-400 focus:ring-0 text-sm placeholder:text-gray-400 font-normal resize-y transition-colors disabled:opacity-50 text-gray-900"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:bg-white focus:border-gray-400 focus:ring-0 text-sm placeholder:text-gray-500 font-normal resize-y transition-colors disabled:opacity-50 text-gray-900"
             />
             {inputText && (
               <button
@@ -216,8 +210,8 @@ export default function ReviewAnalyzer({ reviewsData, setReviewsData, inputText,
 
           {/* Actions Bar */}
           <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-            <div className="text-[11px] text-gray-600 font-medium">
-              {inputText ? `${parseReviews(inputText).length} review(s) detected` : 'Ready to analyze'}
+            <div className="text-[11px] text-gray-700 font-medium">
+              {inputText ? `${parseReviews(inputText).length} review(s) detected` : ''}
             </div>
             <button
               onClick={handleAnalyze}
@@ -238,13 +232,12 @@ export default function ReviewAnalyzer({ reviewsData, setReviewsData, inputText,
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-md font-bold text-gray-900">
-              Analysis Results ({reviewsData.length})
+            <h2 className="text-md font-bold text-[#111827]">
+              Analysis Results ({reviewsData.length} Reviews)
               {selectedThemeFilter && (
-                <span className="ml-1 text-gray-600 font-normal">(filtered: {filteredReviews.length} shown)</span>
+                <span className="ml-1 text-gray-700 font-normal">(filtered: {filteredReviews.length} shown)</span>
               )}
             </h2>
-            <p className="text-[11px] text-gray-600">Reviews analyzed during this session</p>
           </div>
           {reviewsData.length > 0 && (
             <div className="flex items-center gap-2">
@@ -270,7 +263,7 @@ export default function ReviewAnalyzer({ reviewsData, setReviewsData, inputText,
         {!isLoading && reviewsData.length > 0 && (
           <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-sm">
             <div className="text-[11px] font-bold uppercase tracking-wider text-gray-700 mb-2.5">
-              Theme Clusters — Click to Filter
+              Review Clusters
             </div>
             <div className="flex flex-wrap gap-2">
               {getReviewClusters(reviewsData).map((cluster) => {

@@ -185,3 +185,21 @@ export async function getTrendsApi() {
   }
   return response.json();
 }
+
+/**
+ * Service to mark one or more alerts as read in MongoDB.
+ * 
+ * @param {string[]} alertIds - Array of alert ID strings to mark as read
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+export async function markAlertsReadApi(alertIds) {
+  const response = await fetch(`${API_BASE_URL}/api/history/alerts/read`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ alertIds }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to mark alerts as read (HTTP ${response.status})`);
+  }
+  return response.json();
+}

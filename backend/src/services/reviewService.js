@@ -1,5 +1,6 @@
 const Review = require("../models/Review");
 const AnalysisSession = require("../models/AnalysisSession");
+const AlertReadState = require("../models/AlertReadState");
 const { isConnected } = require("../config/database");
 const logger = require("../utils/logger");
 
@@ -216,76 +217,86 @@ function getRiskScore(row) {
 
 /**
  * Generate data-driven alerts from historical reviews in the last 14 days.
+ * Annotates each alert with its MongoDB-persisted read state.
  */
 async function getAlertsService() {
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-  const reviews14Days = await Review.find({
+  // Fallback: if no reviews in last 14 days, use latest 50 reviews for alerts
+  let reviews14Days = await Review.find({
     error: null,
     createdAt: { $gte: fourteenDaysAgo }
   }).sort({ createdAt: -1 }).lean();
 
+  if (reviews14Days.length === 0) {
+    reviews14Days = await Review.find({ error: null }).sort({ createdAt: -1 }).limit(50).lean();
+  }
+
   const thisWeekReviews = reviews14Days.filter(r => r.createdAt >= sevenDaysAgo);
   const lastWeekReviews = reviews14Days.filter(r => r.createdAt < sevenDaysAgo);
 
-  const totalThisWeek = thisWeekReviews.length;
-  const negThisWeek = thisWeekReviews.filter(r => r.sentiment === 'Negative').length;
+  // Use all reviews as "this week" when in fallback mode
+  const effectiveThisWeek = thisWeekReviews.length > 0 ? thisWeekReviews : reviews14Days;
+  const effectiveLastWeek = lastWeekReviews;
+
+  const totalThisWeek = effectiveThisWeek.length;
+  const negThisWeek = effectiveThisWeek.filter(r => r.sentiment === 'Negative').length;
   const negPctThisWeek = totalThisWeek > 0 ? (negThisWeek / totalThisWeek) * 100 : 0;
 
-  const totalLastWeek = lastWeekReviews.length;
-  const negLastWeek = lastWeekReviews.filter(r => r.sentiment === 'Negative').length;
+  const totalLastWeek = effectiveLastWeek.length;
+  const negLastWeek = effectiveLastWeek.filter(r => r.sentiment === 'Negative').length;
   const negPctLastWeek = totalLastWeek > 0 ? (negLastWeek / totalLastWeek) * 100 : 0;
 
   const alerts = [];
 
-  // Rule 1: More than 40% of reviews are negative this week
-  if (totalThisWeek >= 5 && negPctThisWeek > 40) {
+  // Rule 1: More than 40% of reviews are negative
+  if (totalThisWeek >= 3 && negPctThisWeek > 40) {
     alerts.push({
       id: "alert_more_than_40_percent_negative",
       type: "negative_high_pct",
       title: "More than 40% of reviews are negative",
-      description: `Critical: Negative sentiment stands at ${negPctThisWeek.toFixed(0)}% this week with ${negThisWeek} negative reviews.`,
+      description: `Critical: Negative sentiment stands at ${negPctThisWeek.toFixed(0)}% with ${negThisWeek} negative reviews.`,
       severity: "High",
       createdAt: now
     });
   }
 
-  // Rule 2: Negative sentiment increased significantly this week
+  // Rule 2: Negative sentiment increased significantly
   if (totalThisWeek >= 3 && totalLastWeek >= 3 && (negPctThisWeek - negPctLastWeek) >= 15) {
     alerts.push({
       id: "alert_negative_sentiment_increased",
       type: "negative_trend_up",
-      title: "Negative sentiment increased significantly this week",
-      description: `Negative feedback rose from ${negPctLastWeek.toFixed(0)}% last week to ${negPctThisWeek.toFixed(0)}% this week.`,
+      title: "Negative sentiment increased significantly",
+      description: `Negative feedback rose from ${negPctLastWeek.toFixed(0)}% to ${negPctThisWeek.toFixed(0)}%.`,
       severity: "Medium",
       createdAt: now
     });
   }
 
   // Rule 3: Cleanliness complaints are rising
-  const cleanNegThisWeek = thisWeekReviews.filter(r => r.theme === 'Cleanliness' && r.sentiment === 'Negative').length;
-  const cleanNegLastWeek = lastWeekReviews.filter(r => r.theme === 'Cleanliness' && r.sentiment === 'Negative').length;
+  const cleanNegThisWeek = effectiveThisWeek.filter(r => r.theme === 'Cleanliness' && r.sentiment === 'Negative').length;
+  const cleanNegLastWeek = effectiveLastWeek.filter(r => r.theme === 'Cleanliness' && r.sentiment === 'Negative').length;
   if (cleanNegThisWeek > cleanNegLastWeek && cleanNegThisWeek >= 2) {
     alerts.push({
       id: "alert_cleanliness_complaints_rising",
       type: "cleanliness_complaints_rising",
       title: "Cleanliness complaints are rising",
-      description: `Cleanliness complaints increased to ${cleanNegThisWeek} this week compared to ${cleanNegLastWeek} last week.`,
+      description: `Cleanliness complaints increased to ${cleanNegThisWeek} vs ${cleanNegLastWeek} previously.`,
       severity: "High",
       createdAt: now
     });
   }
 
   // Rule 4: High-risk reviews detected
-  const highRiskCount = thisWeekReviews.filter(r => getRiskScore(r) === 'High Risk').length;
+  const highRiskCount = effectiveThisWeek.filter(r => getRiskScore(r) === 'High Risk').length;
   if (highRiskCount > 0) {
     alerts.push({
       id: "alert_high_risk_reviews_detected",
       type: "high_risk_reviews",
       title: "High-risk reviews detected",
-      description: `Action Required: We identified ${highRiskCount} high-risk guest review(s) this week.`,
+      description: `Action Required: ${highRiskCount} high-risk guest review(s) identified requiring attention.`,
       severity: "High",
       createdAt: now
     });
@@ -294,21 +305,43 @@ async function getAlertsService() {
   // Rule 5: Sudden spike in a specific complaint category
   const themes = ["Food", "Host", "Location", "Cleanliness", "Value", "Experience"];
   themes.forEach(theme => {
-    const negThemeThisWeek = thisWeekReviews.filter(r => r.theme === theme && r.sentiment === 'Negative').length;
-    const negThemeLastWeek = lastWeekReviews.filter(r => r.theme === theme && r.sentiment === 'Negative').length;
+    const negThemeThisWeek = effectiveThisWeek.filter(r => r.theme === theme && r.sentiment === 'Negative').length;
+    const negThemeLastWeek = effectiveLastWeek.filter(r => r.theme === theme && r.sentiment === 'Negative').length;
     if (negThemeThisWeek - negThemeLastWeek >= 2) {
       alerts.push({
         id: `alert_spike_${theme.toLowerCase()}`,
         type: `spike_${theme.toLowerCase()}`,
         title: `Sudden spike in ${theme} complaints`,
-        description: `Alert: Negative feedback regarding ${theme} rose to ${negThemeThisWeek} this week vs ${negThemeLastWeek} last week.`,
+        description: `Negative feedback regarding ${theme} rose to ${negThemeThisWeek} vs ${negThemeLastWeek} previously.`,
         severity: "Medium",
         createdAt: now
       });
     }
   });
 
-  return alerts;
+  // Fetch read states from MongoDB and annotate alerts
+  const alertIds = alerts.map(a => a.id);
+  const readStates = await AlertReadState.find({ alertKey: { $in: alertIds } }).lean();
+  const readSet = new Set(readStates.map(r => r.alertKey));
+
+  return alerts.map(a => ({ ...a, read: readSet.has(a.id) }));
+}
+
+/**
+ * Mark one or more alert IDs as read, persisted in MongoDB.
+ *
+ * @param {string[]} alertKeys - Array of alert ID strings to mark as read
+ */
+async function markAlertsReadService(alertKeys) {
+  if (!Array.isArray(alertKeys) || alertKeys.length === 0) return;
+  const ops = alertKeys.map(alertKey => ({
+    updateOne: {
+      filter: { alertKey },
+      update: { $set: { alertKey, readAt: new Date() } },
+      upsert: true,
+    }
+  }));
+  await AlertReadState.bulkWrite(ops);
 }
 
 /**
@@ -493,6 +526,7 @@ module.exports = {
   getStats,
   deleteSession,
   getAlertsService,
+  markAlertsReadService,
   getWeeklySummaryService,
   getTrendsService,
 };

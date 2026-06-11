@@ -81,12 +81,9 @@ export default function HistoryPage({ onLoadSession }) {
     <div className="space-y-8 animate-fade-in">
       {/* Page Header */}
       <div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Trishul Eco-Homestays</span>
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">Analysis History</h1>
-        <p className="mt-2 text-gray-700 max-w-2xl text-sm md:text-base leading-relaxed">
-          Browse previous review analysis sessions stored in MongoDB Atlas. Load any past session to restore results in your workspace.
+        <h1 className="text-2xl font-bold tracking-tight text-[#111827] md:text-3xl">Analysis History</h1>
+        <p className="mt-1.5 text-[#374151] max-w-2xl text-sm md:text-base leading-relaxed">
+          Browse previous review analysis sessions stored in MongoDB Atlas. Load any past session to restore results.
         </p>
       </div>
 
@@ -98,8 +95,8 @@ export default function HistoryPage({ onLoadSession }) {
           <div className="flex items-center gap-2.5">
             <Clock size={15} className="text-gray-600" />
             <div>
-              <h3 className="text-sm font-bold text-gray-900">Analysis Sessions</h3>
-              <p className="text-[10px] text-gray-600 font-medium mt-0.5">All stored review classification runs from MongoDB</p>
+              <h3 className="text-sm font-bold text-[#111827]">Analysis Sessions</h3>
+              <p className="text-[10px] text-gray-700 font-medium mt-0.5">All stored review classification runs from MongoDB</p>
             </div>
           </div>
           <button
@@ -117,7 +114,7 @@ export default function HistoryPage({ onLoadSession }) {
         {historyLoading && historyData.length === 0 ? (
           <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
             <Loader2 size={22} className="animate-spin text-gray-400" />
-            <span className="text-xs text-gray-600 font-semibold">Loading database records...</span>
+            <span className="text-xs text-gray-700 font-semibold">Loading database records...</span>
           </div>
 
         /* Error State */

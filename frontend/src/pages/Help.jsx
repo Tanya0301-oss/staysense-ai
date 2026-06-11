@@ -31,11 +31,11 @@ export default function Help({ setTab, setPreloadedText }) {
       {/* Page Header */}
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Documentation</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-gray-700">Documentation</span>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">Help & Documentation</h1>
-        <p className="mt-2 text-slate-500 text-sm md:text-base leading-relaxed">
-          Learn how to use the Guest Review Intelligence Tool to automate classification, analyze guest sentiments, and generate professional responses.
+        <h1 className="text-2xl font-bold tracking-tight text-[#111827] md:text-3xl">Help & Documentation</h1>
+        <p className="mt-2 text-[#374151] text-sm md:text-base leading-relaxed">
+          Learn how to use StaySense AI to automate classification, analyze guest sentiments, and generate professional responses.
         </p>
       </div>
 
@@ -45,7 +45,7 @@ export default function Help({ setTab, setPreloadedText }) {
           {/* Section: How to Use */}
           <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-xs space-y-4">
             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2.5 border-b border-slate-100">
-              <BookOpen size={16} className="text-slate-500" />
+              <BookOpen size={16} className="text-slate-600" />
               <span>How to Use the Tool</span>
             </h2>
             <ol className="text-xs text-slate-600 space-y-3 list-decimal list-inside leading-relaxed">
@@ -81,7 +81,7 @@ The breakfast options were limited and cold.
 Perfect location near the waterfall.`}
               </pre>
             </div>
-            <p className="text-[11px] text-slate-500 italic">
+            <p className="text-[11px] text-slate-700 italic">
               Note: Empty lines and lines shorter than 5 characters are automatically filtered out during validation.
             </p>
           </section>
@@ -123,7 +123,7 @@ Perfect location near the waterfall.`}
                 </span>
                 <div>
                   <span className="block text-xs font-semibold text-slate-700">Positive</span>
-                  <span className="block text-[10px] text-slate-400">Praise or high satisfaction</span>
+                  <span className="block text-[10px] text-slate-700">Praise or high satisfaction</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -132,7 +132,7 @@ Perfect location near the waterfall.`}
                 </span>
                 <div>
                   <span className="block text-xs font-semibold text-slate-700">Neutral</span>
-                  <span className="block text-[10px] text-slate-400">Mixed or factual remarks</span>
+                  <span className="block text-[10px] text-slate-700">Mixed or factual remarks</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -141,7 +141,7 @@ Perfect location near the waterfall.`}
                 </span>
                 <div>
                   <span className="block text-xs font-semibold text-slate-700">Negative</span>
-                  <span className="block text-[10px] text-slate-400">Complaints or dissatisfaction</span>
+                  <span className="block text-[10px] text-slate-700">Complaints or dissatisfaction</span>
                 </div>
               </div>
             </div>
@@ -163,7 +163,7 @@ Perfect location near the waterfall.`}
                   <Tag size={12} className="text-slate-400 mt-1 shrink-0" />
                   <div>
                     <span className="block text-xs font-semibold text-slate-700">{t.name}</span>
-                    <span className="block text-[10px] text-slate-400 leading-normal">{t.desc}</span>
+                    <span className="block text-[10px] text-slate-700 leading-normal">{t.desc}</span>
                   </div>
                 </div>
               ))}

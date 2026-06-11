@@ -5,6 +5,7 @@ const {
   getStatsSummary,
   removeSession,
   getAlerts,
+  markAlertsRead,
   getWeeklySummary,
   getTrends,
 } = require("../controllers/historyController");
@@ -16,6 +17,7 @@ router.get("/stats/summary", getStatsSummary);
 
 // Intelligence layer endpoints
 router.get("/alerts", getAlerts);
+router.post("/alerts/read", markAlertsRead);
 router.get("/weekly-summary", getWeeklySummary);
 router.get("/trends", getTrends);
 
