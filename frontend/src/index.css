@@ -1,81 +1,306 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
 @import "tailwindcss";
 
-/* ── Design Tokens ────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   DESIGN TOKENS — LIGHT THEME
+   ═══════════════════════════════════════════════════════════════ */
 :root {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
 
-  /* Premium Color System */
-  --color-bg: #FAF7F2;
-  --color-card: #FFFFFF;
-  --color-text-primary: #111827;
-  --color-text-secondary: #374151;
-  --color-accent: #FFB703;
-  --color-border: #E5E7EB;
+  --color-bg:              #FAF7F2;
+  --color-card:            #FFFFFF;
+  --color-text-primary:    #111827;
+  --color-text-secondary:  #374151;
+  --color-accent:          #FBBF24;
+  --color-border:          #E5E7EB;
+
+  --color-sidebar:         #FFFFFF;
+  --color-header:          #FFFFFF;
+  --color-header-border:   #E2E8F0;
+
+  --color-nav-active-bg:   #FBBF24;
+  --color-nav-active-text: #111827;
+  --color-nav-hover-bg:    #F9FAFB;
+  --color-nav-text:        #374151;
+
+  --card-radius:           16px;
+  --card-shadow:           0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --card-shadow-md:        0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   DESIGN TOKENS — DARK THEME
+   ═══════════════════════════════════════════════════════════════ */
+[data-theme="dark"] {
+  --color-bg:              #0F172A;
+  --color-card:            #1E293B;
+  --color-text-primary:    #F9FAFB;
+  --color-text-secondary:  #D1D5DB;
+  --color-accent:          #FBBF24;
+  --color-border:          #334155;
+
+  --color-sidebar:         #111827;
+  --color-header:          #111827;
+  --color-header-border:   #374151;
+
+  --color-nav-active-bg:   #FBBF24;
+  --color-nav-active-text: #111827;
+  --color-nav-hover-bg:    #1F2937;
+  --color-nav-text:        #D1D5DB;
+
+  --card-shadow:           0 4px 20px rgba(0, 0, 0, 0.35);
+  --card-shadow-md:        0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BASE STYLES
+   ═══════════════════════════════════════════════════════════════ */
 body {
   background-color: var(--color-bg);
   color: var(--color-text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-body,
-button,
-input,
-select,
-textarea {
+body, button, input, select, textarea {
   font-family: inherit;
 }
 
-/* ── Custom Scrollbars ────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ═══════════════════════════════════════════════════════════════
+   DARK MODE — COMPREHENSIVE CLASS OVERRIDES
+   Target every hardcoded Tailwind class used by existing pages
+   so no page files need to be touched.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Backgrounds ─────────────────────────────────────────────── */
+[data-theme="dark"] .bg-white          { background-color: #1E293B !important; }
+[data-theme="dark"] .bg-gray-50        { background-color: #1a2332 !important; }
+[data-theme="dark"] .bg-gray-100       { background-color: #243040 !important; }
+[data-theme="dark"] .bg-slate-50       { background-color: #1a2332 !important; }
+[data-theme="dark"] .bg-slate-100      { background-color: #243040 !important; }
+
+/* ── Borders ─────────────────────────────────────────────────── */
+[data-theme="dark"] .border-gray-100   { border-color: #1e2d3d !important; }
+[data-theme="dark"] .border-gray-200   { border-color: #334155 !important; }
+[data-theme="dark"] .border-gray-300   { border-color: #475569 !important; }
+[data-theme="dark"] .border-slate-100  { border-color: #1e2d3d !important; }
+[data-theme="dark"] .border-slate-200  { border-color: #334155 !important; }
+[data-theme="dark"] .border-slate-300  { border-color: #475569 !important; }
+[data-theme="dark"] .divide-gray-100 > * + *  { border-color: #1e2d3d !important; }
+[data-theme="dark"] .divide-gray-200 > * + *  { border-color: #334155 !important; }
+[data-theme="dark"] .divide-slate-100 > * + * { border-color: #1e2d3d !important; }
+
+/* ── Text ────────────────────────────────────────────────────── */
+[data-theme="dark"] .text-gray-900  { color: #F9FAFB !important; }
+[data-theme="dark"] .text-gray-800  { color: #F3F4F6 !important; }
+[data-theme="dark"] .text-gray-700  { color: #D1D5DB !important; }
+[data-theme="dark"] .text-gray-600  { color: #9CA3AF !important; }
+[data-theme="dark"] .text-gray-500  { color: #6B7280 !important; }
+[data-theme="dark"] .text-gray-400  { color: #6B7280 !important; }
+[data-theme="dark"] .text-gray-300  { color: #4B5563 !important; }
+[data-theme="dark"] .text-slate-700 { color: #D1D5DB !important; }
+[data-theme="dark"] .text-slate-900 { color: #F9FAFB !important; }
+
+/* Hardcoded hex text colors in pages */
+[data-theme="dark"] [class*="text-\[#111827\]"] { color: #F9FAFB !important; }
+[data-theme="dark"] [class*="text-\[#374151\]"] { color: #D1D5DB !important; }
+
+/* ── Inputs / Textareas ──────────────────────────────────────── */
+[data-theme="dark"] textarea,
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] select {
+  background-color: #111827 !important;
+  border-color: #374151 !important;
+  color: #F9FAFB !important;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] input:focus {
+  border-color: #FBBF24 !important;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.15) !important;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
-  border-radius: 4px;
+[data-theme="dark"] textarea::placeholder,
+[data-theme="dark"] input::placeholder {
+  color: #4B5563 !important;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #cbd5e1;
+/* Input wrapper bg overrides from ReviewAnalyzer */
+[data-theme="dark"] .bg-gray-50.border.border-gray-200.rounded-md {
+  background-color: #111827 !important;
 }
 
-/* ── Recharts Tooltip ─────────────────────────────────── */
-.recharts-default-tooltip {
-  border: 1px solid #e2e8f0 !important;
+/* ── Tables ──────────────────────────────────────────────────── */
+[data-theme="dark"] table { background-color: #1E293B !important; }
+[data-theme="dark"] thead tr { background-color: #111827 !important; }
+[data-theme="dark"] .bg-gray-50.border-b { background-color: #111827 !important; }
+[data-theme="dark"] tr:hover { background-color: #273549 !important; }
+[data-theme="dark"] td { color: #D1D5DB !important; }
+[data-theme="dark"] th { color: #9CA3AF !important; }
+
+/* Table row hover override (ReviewAnalyzer uses hover:bg-amber-50/30) */
+[data-theme="dark"] tr.hover\:bg-amber-50\/30:hover {
+  background-color: #273549 !important;
+}
+
+/* ── Badges — Sentiment / Risk / Priority ────────────────────── */
+/* Keep light-mode badge colors but improve dark mode readability */
+[data-theme="dark"] .bg-emerald-50  { background-color: rgba(16, 185, 129, 0.15) !important; }
+[data-theme="dark"] .bg-rose-50     { background-color: rgba(239, 68, 68, 0.15) !important; }
+[data-theme="dark"] .bg-amber-50    { background-color: rgba(245, 158, 11, 0.15) !important; }
+[data-theme="dark"] .bg-blue-50     { background-color: rgba(59, 130, 246, 0.15) !important; }
+[data-theme="dark"] .bg-orange-50   { background-color: rgba(249, 115, 22, 0.15) !important; }
+
+[data-theme="dark"] .text-emerald-700 { color: #34D399 !important; }
+[data-theme="dark"] .text-rose-700    { color: #F87171 !important; }
+[data-theme="dark"] .text-amber-700   { color: #FCD34D !important; }
+[data-theme="dark"] .text-amber-800   { color: #FCD34D !important; }
+[data-theme="dark"] .text-orange-700  { color: #FB923C !important; }
+[data-theme="dark"] .text-blue-800    { color: #93C5FD !important; }
+
+[data-theme="dark"] .border-emerald-200\/50 { border-color: rgba(52, 211, 153, 0.25) !important; }
+[data-theme="dark"] .border-rose-200\/50    { border-color: rgba(248, 113, 113, 0.25) !important; }
+[data-theme="dark"] .border-amber-200\/50   { border-color: rgba(252, 211, 77, 0.25) !important; }
+[data-theme="dark"] .border-amber-200       { border-color: rgba(252, 211, 77, 0.25) !important; }
+[data-theme="dark"] .border-emerald-200     { border-color: rgba(52, 211, 153, 0.25) !important; }
+[data-theme="dark"] .border-emerald-300     { border-color: rgba(52, 211, 153, 0.4) !important; }
+[data-theme="dark"] .border-rose-200        { border-color: rgba(248, 113, 113, 0.25) !important; }
+[data-theme="dark"] .border-rose-300        { border-color: rgba(248, 113, 113, 0.4) !important; }
+[data-theme="dark"] .border-amber-300       { border-color: rgba(252, 211, 77, 0.4) !important; }
+
+/* ── Cluster chips background override ───────────────────────── */
+[data-theme="dark"] .bg-amber-50.border-amber-200 { background-color: rgba(245, 158, 11, 0.12) !important; }
+
+/* White/60 badge counter inside cluster chips */
+[data-theme="dark"] .bg-white\/60 { background-color: rgba(255,255,255,0.1) !important; }
+
+/* ── Section separators ──────────────────────────────────────── */
+[data-theme="dark"] .border-t.border-gray-200 { border-color: #334155 !important; }
+[data-theme="dark"] .border-b.border-gray-100 { border-color: #1e2d3d !important; }
+[data-theme="dark"] .border-t.border-gray-100 { border-color: #1e2d3d !important; }
+
+/* ── Error / Alert boxes ─────────────────────────────────────── */
+[data-theme="dark"] .bg-rose-50.border-rose-200  { background-color: rgba(239,68,68,0.1) !important; }
+[data-theme="dark"] .bg-rose-50.border.border-rose-200 { background-color: rgba(239,68,68,0.1) !important; }
+[data-theme="dark"] .text-rose-800  { color: #FCA5A5 !important; }
+[data-theme="dark"] .text-rose-600  { color: #F87171 !important; }
+[data-theme="dark"] .bg-amber-50.border-amber-200 { background-color: rgba(251,191,36,0.1) !important; }
+[data-theme="dark"] .text-amber-800 { color: #FCD34D !important; }
+[data-theme="dark"] .bg-gray-50.border-gray-200.rounded { background-color: #243040 !important; border-color: #334155 !important; }
+[data-theme="dark"] .text-gray-600.font-mono { color: #9CA3AF !important; }
+
+/* ── Insight page specific ───────────────────────────────────── */
+[data-theme="dark"] .bg-white.rounded-xl.border.border-amber-300 {
+  background-color: #1E293B !important;
+  border-color: rgba(251, 191, 36, 0.4) !important;
+}
+[data-theme="dark"] .border-amber-300 { border-color: rgba(251, 191, 36, 0.4) !important; }
+[data-theme="dark"] .text-amber-800.text-\[10px\] { color: #FCD34D !important; }
+
+/* Trend summary card */
+[data-theme="dark"] .bg-emerald-50.border-emerald-200 { background-color: rgba(16,185,129,0.1) !important; }
+[data-theme="dark"] .bg-rose-50.border-rose-200 { background-color: rgba(239,68,68,0.1) !important; }
+[data-theme="dark"] .bg-gray-50.border-gray-200 { background-color: #1a2332 !important; border-color: #334155 !important; }
+[data-theme="dark"] .bg-emerald-100 { background-color: rgba(16,185,129,0.15) !important; }
+[data-theme="dark"] .bg-rose-100    { background-color: rgba(239,68,68,0.15) !important; }
+[data-theme="dark"] .bg-gray-100    { background-color: #243040 !important; }
+[data-theme="dark"] .text-emerald-600 { color: #34D399 !important; }
+[data-theme="dark"] .text-rose-600    { color: #F87171 !important; }
+[data-theme="dark"] .text-gray-600    { color: #9CA3AF !important; }
+
+/* Recharts chart tooltip */
+[data-theme="dark"] .recharts-default-tooltip {
+  background-color: #1E293B !important;
+  border-color: #334155 !important;
+  color: #F9FAFB !important;
+}
+
+/* ── Copy / Export button overrides ─────────────────────────── */
+[data-theme="dark"] .bg-white.border.border-gray-200 {
+  background-color: #243040 !important;
+  border-color: #334155 !important;
+}
+[data-theme="dark"] .hover\:border-gray-400:hover { border-color: #64748B !important; }
+
+/* ── Action buttons inside cards ─────────────────────────────── */
+[data-theme="dark"] .hover\:bg-gray-100:hover  { background-color: #243040 !important; }
+[data-theme="dark"] .hover\:bg-gray-50:hover   { background-color: #1a2332 !important; }
+[data-theme="dark"] .hover\:text-gray-900:hover { color: #F9FAFB !important; }
+[data-theme="dark"] .hover\:text-gray-800:hover { color: #F3F4F6 !important; }
+
+/* Trash / clear button */
+[data-theme="dark"] .bg-white.border.border-gray-200.shadow-sm.text-gray-500 {
+  background-color: #243040 !important;
+  border-color: #334155 !important;
+  color: #9CA3AF !important;
+}
+
+/* ── History / Help pages — generic card overrides ───────────── */
+[data-theme="dark"] .bg-white.rounded-lg  { background-color: #1E293B !important; }
+[data-theme="dark"] .bg-white.rounded-xl  { background-color: #1E293B !important; }
+[data-theme="dark"] .bg-white.rounded-2xl { background-color: #1E293B !important; }
+
+/* ── Skeleton / loading pulse ────────────────────────────────── */
+[data-theme="dark"] .bg-gray-200 { background-color: #334155 !important; }
+[data-theme="dark"] .bg-gray-100.rounded-sm { background-color: #243040 !important; }
+[data-theme="dark"] .bg-gray-50.rounded-sm  { background-color: #1a2332 !important; }
+
+/* ── Scrollbars ──────────────────────────────────────────────── */
+::-webkit-scrollbar         { width: 6px; height: 6px; }
+::-webkit-scrollbar-track   { background: transparent; }
+::-webkit-scrollbar-thumb   { background: #CBD5E1; border-radius: 4px; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb       { background: #374151; }
+::-webkit-scrollbar-thumb:hover                      { background: #94A3B8; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover  { background: #4B5563; }
+
+/* ═══════════════════════════════════════════════════════════════
+   RECHARTS — CHART GRID & AXES IN DARK MODE
+   ═══════════════════════════════════════════════════════════════ */
+[data-theme="dark"] .recharts-cartesian-grid-horizontal line,
+[data-theme="dark"] .recharts-cartesian-grid-vertical line {
+  stroke: #334155 !important;
+}
+[data-theme="dark"] .recharts-text { fill: #9CA3AF !important; }
+[data-theme="dark"] .recharts-legend-item-text { color: #D1D5DB !important; }
+[data-theme="dark"] .recharts-default-tooltip {
+  background-color: #1E293B !important;
+  border: 1px solid #334155 !important;
   border-radius: 0.5rem !important;
-  box-shadow: 0 4px 16px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05) !important;
-  font-family: inherit !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+  color: #F9FAFB !important;
 }
+[data-theme="dark"] .recharts-tooltip-label { color: #FBBF24 !important; }
+[data-theme="dark"] .recharts-tooltip-item  { color: #D1D5DB !important; }
 
-/* ── Fade-In Animation ────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════ */
 @keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.25s ease-out both; }
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ═══════════════════════════════════════════════════════════════
+   UTILITY SHADOWS
+   ═══════════════════════════════════════════════════════════════ */
+.card-shadow    { box-shadow: var(--card-shadow); }
+.card-shadow-md { box-shadow: var(--card-shadow-md); }
+
+/* ═══════════════════════════════════════════════════════════════
+   SMOOTH THEME TRANSITION
+   Only transition color-related properties to avoid jank
+   ═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 0.18s;
+  transition-timing-function: ease;
 }
 
-.animate-fade-in {
-  animation: fade-in 0.25s ease-out both;
-}
-
-/* ── Card Elevation ───────────────────────────────────── */
-.card-shadow {
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
-}
-
-.card-shadow-md {
-  box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+/* Interactive elements need full transition set */
+button, a, input, select, textarea {
+  transition-property: background-color, border-color, color, opacity, transform, box-shadow;
 }

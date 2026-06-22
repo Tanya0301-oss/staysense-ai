@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FileText, 
-  BarChart3, 
-  HelpCircle, 
-  Menu, 
+import {
+  FileText,
+  BarChart3,
+  HelpCircle,
+  Menu,
   X,
   Clock,
   Bell,
@@ -14,11 +14,17 @@ import {
   Minus,
   Smile,
   Frown,
-  Activity
+  Activity,
+  Sun,
+  Moon,
+  Layers,
 } from 'lucide-react';
 import { getAlertsApi, getWeeklySummaryApi, markAlertsReadApi } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
 export default function DashboardLayout({ children, currentPage, setCurrentPage }) {
+  const { theme, toggleTheme } = useTheme();
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showWeeklySummary, setShowWeeklySummary] = useState(false);
 
@@ -41,7 +47,6 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
       }
     }
     fetchAlerts();
-    // Poll alerts every 30 seconds
     const timer = setInterval(fetchAlerts, 30000);
     return () => {
       active = false;
@@ -49,20 +54,16 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
     };
   }, []);
 
-  // Since read state is now persisted in MongoDB via the backend,
-  // we use the `read` flag returned by the server for each alert.
   const unreadAlertsCount = alerts.filter(a => !a.read).length;
 
   const handleMarkAllAsRead = async () => {
     const unreadIds = alerts.filter(a => !a.read).map(a => a.id);
     if (unreadIds.length === 0) return;
-    // Optimistically update UI
     setAlerts(prev => prev.map(a => ({ ...a, read: true })));
     try {
       await markAlertsReadApi(unreadIds);
     } catch (err) {
       console.error("Failed to mark all as read:", err);
-      // Re-fetch to sync state
       try {
         const res = await getAlertsApi();
         if (res.success) setAlerts(res.data || []);
@@ -72,7 +73,6 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
 
   const handleMarkAsRead = async (alert) => {
     if (alert.read) return;
-    // Optimistically update UI
     setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, read: true } : a));
     try {
       await markAlertsReadApi([alert.id]);
@@ -128,7 +128,13 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
       name: 'Help Center',
       icon: HelpCircle,
       description: 'Documentation & guide'
-    }
+    },
+    {
+      id: 'showcase',
+      name: 'UI Showcase',
+      icon: Layers,
+      description: 'Component library demo'
+    },
   ];
 
   const NavItem = ({ item, onClick }) => {
@@ -138,34 +144,70 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
       <button
         key={item.id}
         onClick={onClick}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left text-sm font-medium transition-all ${
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-all ${
           isActive
-            ? 'bg-amber-400 text-gray-900 shadow-sm font-semibold'
-            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+            ? 'shadow-sm font-semibold'
+            : 'hover:bg-[var(--color-nav-hover-bg)]'
         }`}
+        style={
+          isActive
+            ? { background: '#FBBF24', color: '#111827' }
+            : { color: 'var(--color-nav-text)' }
+        }
       >
         <Icon
           size={17}
-          className={isActive ? 'text-gray-900' : 'text-gray-600'}
+          style={isActive ? { color: '#111827' } : { color: 'var(--color-nav-text)' }}
         />
         <span>{item.name}</span>
       </button>
     );
   };
 
+  /* ── Theme-aware inline style shortcuts ─────────────────────── */
+  const sidebarStyle = {
+    background: 'var(--color-sidebar)',
+    borderColor: 'var(--color-border)',
+  };
+  const headerStyle = {
+    background: 'var(--color-header)',
+    borderColor: 'var(--color-header-border)',
+  };
+
+  /* Shared card style for dropdowns/panels */
+  const panelStyle = {
+    background: 'var(--color-card)',
+    borderColor: 'var(--color-border)',
+    borderRadius: '16px',
+    boxShadow: 'var(--card-shadow-md)',
+  };
+
   return (
-    <div className="flex h-screen overflow-hidden font-sans" style={{ background: '#FAF7F2' }}>
+    <div
+      className="flex h-screen overflow-hidden font-sans"
+      style={{ background: 'var(--color-bg)', fontFamily: '"Inter", system-ui, sans-serif' }}
+    >
 
       {/* ── Sidebar (Desktop) ─────────────────────────────────────────────── */}
-      <aside className="hidden md:flex md:flex-col md:w-60 bg-white border-r border-slate-200">
-
+      <aside
+        className="hidden md:flex md:flex-col md:w-60 border-r shrink-0"
+        style={sidebarStyle}
+      >
         {/* Logo / Brand */}
-        <div className="h-14 flex items-center px-5 border-b border-slate-100 gap-2.5 shrink-0">
+        <div
+          className="h-14 flex items-center px-5 gap-2.5 shrink-0 border-b"
+          style={{ borderColor: 'var(--color-border)' }}
+        >
           <div className="w-7 h-7 bg-[#FFB703] rounded flex items-center justify-center shrink-0 shadow-sm border border-amber-500/20">
             <span className="text-gray-900 font-black text-xs">S</span>
           </div>
           <div>
-            <span className="font-bold text-[#111827] text-sm tracking-tight block leading-tight">StaySense AI</span>
+            <span
+              className="font-bold text-sm tracking-tight block leading-tight"
+              style={{ color: 'var(--color-text-primary)' }}
+            >
+              StaySense AI
+            </span>
           </div>
         </div>
 
@@ -181,13 +223,21 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
         </nav>
 
         {/* Staff Footer */}
-        <div className="p-4 border-t border-slate-100 shrink-0">
+        <div
+          className="p-4 border-t shrink-0"
+          style={{ borderColor: 'var(--color-border)' }}
+        >
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-[#FFB703] flex items-center justify-center text-xs font-bold text-gray-900 border border-amber-500/30 shrink-0 shadow-sm">
               ST
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-[#111827] truncate">Staff Member</p>
+              <p
+                className="text-xs font-semibold truncate"
+                style={{ color: 'var(--color-text-primary)' }}
+              >
+                Staff Member
+              </p>
             </div>
           </div>
         </div>
@@ -196,21 +246,33 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
       {/* ── Mobile Drawer ─────────────────────────────────────────────────── */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
-          <div 
-            className="fixed inset-0 bg-slate-900/40"
+          <div
+            className="fixed inset-0 bg-slate-900/50"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-          <div className="relative flex flex-col w-72 bg-white h-full shadow-xl">
-            <div className="h-14 flex items-center justify-between px-5 border-b border-slate-100 shrink-0">
+          <div
+            className="relative flex flex-col w-72 h-full shadow-xl"
+            style={sidebarStyle}
+          >
+            <div
+              className="h-14 flex items-center justify-between px-5 border-b shrink-0"
+              style={{ borderColor: 'var(--color-border)' }}
+            >
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 bg-amber-400 rounded flex items-center justify-center">
                   <span className="text-gray-900 font-black text-xs">S</span>
                 </div>
-                <span className="font-bold text-slate-900 text-sm">StaySense AI</span>
+                <span
+                  className="font-bold text-sm"
+                  style={{ color: 'var(--color-text-primary)' }}
+                >
+                  StaySense AI
+                </span>
               </div>
-              <button 
+              <button
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="p-1.5 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                className="p-1.5 rounded-md transition-colors hover:bg-gray-100/20"
+                style={{ color: 'var(--color-text-secondary)' }}
               >
                 <X size={18} />
               </button>
@@ -229,13 +291,21 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
               ))}
             </nav>
 
-            <div className="p-4 border-t border-slate-100 shrink-0">
+            <div
+              className="p-4 border-t shrink-0"
+              style={{ borderColor: 'var(--color-border)' }}
+            >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-[#FFB703] flex items-center justify-center text-xs font-bold text-gray-900 shadow-sm">
                   ST
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-[#111827]">Staff Member</p>
+                  <p
+                    className="text-xs font-semibold"
+                    style={{ color: 'var(--color-text-primary)' }}
+                  >
+                    Staff Member
+                  </p>
                 </div>
               </div>
             </div>
@@ -244,43 +314,77 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
       )}
 
       {/* ── Main Content ──────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
         {/* ── Top Header Bar ────────────────────────────────────────────── */}
-        <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-5 md:px-6 shrink-0">
+        <header
+          className="h-14 border-b flex items-center justify-between px-4 sm:px-5 md:px-6 shrink-0"
+          style={headerStyle}
+        >
           {/* Left: Mobile menu button + page context */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Hamburger — mobile only */}
             <button
+              id="mobile-menu-btn"
               onClick={() => setIsMobileMenuOpen(true)}
-              className="p-1.5 rounded-md text-gray-700 hover:bg-gray-100 transition-colors md:hidden"
+              className="p-1.5 rounded-md transition-colors hover:bg-gray-100/30 md:hidden shrink-0"
+              style={{ color: 'var(--color-text-secondary)' }}
             >
               <Menu size={19} />
             </button>
-            <div className="flex items-center gap-2.5 md:hidden">
-              <div className="w-6 h-6 bg-amber-400 rounded flex items-center justify-center">
+
+            {/* Brand — mobile only */}
+            <div className="flex items-center gap-2 md:hidden">
+              <div className="w-6 h-6 bg-amber-400 rounded flex items-center justify-center shrink-0">
                 <span className="text-gray-900 font-black text-[10px]">S</span>
               </div>
-              <span className="font-bold text-slate-900 text-sm">StaySense AI</span>
+              <span
+                className="font-bold text-sm"
+                style={{ color: 'var(--color-text-primary)' }}
+              >
+                StaySense AI
+              </span>
             </div>
-            {/* Desktop: Current page label */}
-            <div className="hidden md:flex items-center gap-2">
-              <span className="text-sm font-semibold text-slate-700">
+
+            {/* Desktop: current page breadcrumb */}
+            <div className="hidden md:flex items-center gap-2 min-w-0">
+              <span
+                className="text-sm font-semibold truncate"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
                 {navigationItems.find(n => n.id === currentPage)?.name || 'Dashboard'}
               </span>
-              <span className="text-gray-500">/</span>
-              <span className="text-xs text-gray-700 font-medium">
+              <span style={{ color: 'var(--color-text-secondary)' }}>/</span>
+              <span
+                className="text-xs font-medium truncate"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
                 {navigationItems.find(n => n.id === currentPage)?.description}
               </span>
             </div>
           </div>
 
           {/* Right: Action buttons */}
-          <div className="flex items-center gap-2">
-            {/* Notification Bell */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+
+            {/* ── Theme Toggle ───────────────────────────────── */}
+            <button
+              id="theme-toggle-btn"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              className="p-2 rounded-lg transition-all hover:bg-gray-100/10 hover:text-[#FBBF24]"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+
+            {/* ── Notification Bell ──────────────────────────── */}
             <div className="relative">
               <button
+                id="notifications-btn"
                 onClick={() => setIsAlertPanelOpen(!isAlertPanelOpen)}
-                className="relative p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                className="relative p-2 rounded-lg transition-all hover:bg-gray-100/10"
+                style={{ color: 'var(--color-text-secondary)' }}
                 title="Notifications"
               >
                 <Bell size={17} />
@@ -293,13 +397,23 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
 
               {isAlertPanelOpen && (
                 <>
-                  {/* Click outside backdrop */}
                   <div className="fixed inset-0 z-40" onClick={() => setIsAlertPanelOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-84 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in" style={{ width: '22rem' }}>
-                    <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-white">
+                  <div
+                    className="absolute right-0 mt-2 w-80 sm:w-[22rem] border overflow-hidden animate-fade-in z-50"
+                    style={panelStyle}
+                  >
+                    <div
+                      className="px-4 py-3 border-b flex items-center justify-between"
+                      style={{ borderColor: 'var(--color-border)', background: 'var(--color-sidebar)' }}
+                    >
                       <div className="flex items-center gap-2">
-                        <Bell size={14} className="text-[#FFB703]" />
-                        <span className="text-xs font-bold text-[#111827]">Notifications</span>
+                        <Bell size={14} style={{ color: '#FBBF24' }} />
+                        <span
+                          className="text-xs font-bold"
+                          style={{ color: 'var(--color-text-primary)' }}
+                        >
+                          Notifications
+                        </span>
                         {unreadAlertsCount > 0 && (
                           <span className="text-[9px] font-bold text-white bg-rose-600 px-1.5 py-0.5 rounded-full">
                             {unreadAlertsCount}
@@ -309,43 +423,41 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
                       {unreadAlertsCount > 0 && (
                         <button
                           onClick={handleMarkAllAsRead}
-                          className="text-[10px] text-[#FFB703] hover:text-amber-600 font-bold transition-colors flex items-center gap-1"
+                          className="text-[10px] font-bold transition-colors flex items-center gap-1"
+                          style={{ color: '#FBBF24' }}
                         >
                           <Check size={10} />
                           Mark All Read
                         </button>
                       )}
                     </div>
-                    <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                    <div className="max-h-80 overflow-y-auto divide-y" style={{ borderColor: 'var(--color-border)' }}>
                       {alerts.length === 0 ? (
                         <div className="p-8 text-center">
                           <Bell size={20} className="mx-auto text-gray-300 mb-2" />
-                          <p className="text-xs font-semibold text-gray-700">No alerts at this time</p>
-                          <p className="text-[10px] text-gray-600 mt-0.5">System is healthy</p>
+                          <p className="text-xs font-semibold" style={{ color: 'var(--color-text-secondary)' }}>No alerts at this time</p>
+                          <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>System is healthy</p>
                         </div>
                       ) : (
                         alerts.map((alert) => {
                           const isRead = alert.read;
                           let severityLabel = 'bg-gray-100 text-gray-700';
-                          if (alert.severity === 'High') {
-                            severityLabel = 'bg-rose-100 text-rose-800';
-                          } else if (alert.severity === 'Medium') {
-                            severityLabel = 'bg-amber-100 text-amber-800';
-                          } else if (alert.severity === 'Low') {
-                            severityLabel = 'bg-blue-100 text-blue-800';
-                          }
+                          if (alert.severity === 'High') severityLabel = 'bg-rose-100 text-rose-800';
+                          else if (alert.severity === 'Medium') severityLabel = 'bg-amber-100 text-amber-800';
+                          else if (alert.severity === 'Low') severityLabel = 'bg-blue-100 text-blue-800';
                           return (
-                            <div 
-                              key={alert.id} 
-                              className={`p-3.5 border-l-[3px] transition-colors flex justify-between gap-3 ${
-                                isRead 
-                                  ? 'border-l-gray-200 bg-slate-50/50 opacity-70' 
-                                  : alert.severity === 'High' 
-                                    ? 'border-l-rose-500 bg-white' 
-                                    : alert.severity === 'Medium' 
-                                      ? 'border-l-[#FFB703] bg-white' 
-                                      : 'border-l-blue-500 bg-white'
+                            <div
+                              key={alert.id}
+                              className={`p-3.5 border-l-[3px] flex justify-between gap-3 ${
+                                isRead
+                                  ? 'border-l-gray-200 opacity-70'
+                                  : alert.severity === 'High'
+                                    ? 'border-l-rose-500'
+                                    : alert.severity === 'Medium'
+                                      ? 'border-l-[#FFB703]'
+                                      : 'border-l-blue-500'
                               }`}
+                              style={{ background: 'var(--color-card)' }}
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5 mb-1">
@@ -356,9 +468,22 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
                                     <span className="w-1.5 h-1.5 bg-[#FFB703] rounded-full shrink-0 animate-pulse" />
                                   )}
                                 </div>
-                                <span className={`text-xs block text-[#111827] leading-tight ${isRead ? 'font-medium' : 'font-bold'}`}>{alert.title}</span>
-                                <p className="text-[11px] text-[#374151] leading-normal mt-0.5">{alert.description}</p>
-                                <span className="text-[9px] text-gray-600 block mt-1 font-medium">
+                                <span
+                                  className={`text-xs block leading-tight ${isRead ? 'font-medium' : 'font-bold'}`}
+                                  style={{ color: 'var(--color-text-primary)' }}
+                                >
+                                  {alert.title}
+                                </span>
+                                <p
+                                  className="text-[11px] leading-normal mt-0.5"
+                                  style={{ color: 'var(--color-text-secondary)' }}
+                                >
+                                  {alert.description}
+                                </p>
+                                <span
+                                  className="text-[9px] block mt-1 font-medium"
+                                  style={{ color: 'var(--color-text-secondary)' }}
+                                >
                                   {new Date(alert.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                               </div>
@@ -387,13 +512,28 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
               )}
             </div>
 
-            {/* Weekly Summary Button */}
+            {/* ── Weekly Summary Button ──────────────────────── */}
+            {/* Desktop: full label; mobile: icon-only button */}
             <button
+              id="weekly-summary-btn"
               onClick={handleOpenWeeklySummary}
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#FFB703] hover:bg-[#ffa700] text-gray-900 rounded-md text-xs font-bold transition-colors border border-amber-500/30 shadow-sm"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-gray-900 rounded-lg text-xs font-bold transition-all border shadow-sm hover:brightness-95"
+              style={{ background: '#FBBF24', borderColor: 'rgba(251,191,36,0.4)' }}
+              title="Weekly Summary"
             >
               <CalendarDays size={13} />
-              <span>Weekly Summary</span>
+              <span className="hidden lg:inline">Weekly Summary</span>
+              <span className="sm:inline lg:hidden">Summary</span>
+            </button>
+
+            {/* Icon-only on xs screens */}
+            <button
+              onClick={handleOpenWeeklySummary}
+              className="flex sm:hidden items-center justify-center p-2 text-gray-900 rounded-lg transition-all border hover:brightness-95"
+              style={{ background: '#FBBF24', borderColor: 'rgba(251,191,36,0.4)' }}
+              title="Weekly Summary"
+            >
+              <CalendarDays size={15} />
             </button>
           </div>
         </header>
@@ -402,27 +542,45 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
         {showWeeklySummary && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
-              className="fixed inset-0 bg-slate-900/40"
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
               onClick={() => setShowWeeklySummary(false)}
             />
-            <div className="relative bg-white rounded-xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 overflow-hidden animate-fade-in">
-              <div className="flex items-center justify-between mb-5 border-b border-slate-100 pb-3">
+            <div
+              className="relative w-full max-w-lg p-6 overflow-hidden animate-fade-in"
+              style={{
+                background: 'var(--color-card)',
+                borderColor: 'var(--color-border)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '20px',
+                boxShadow: 'var(--card-shadow-md)',
+              }}
+            >
+              <div
+                className="flex items-center justify-between mb-5 border-b pb-3"
+                style={{ borderColor: 'var(--color-border)' }}
+              >
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-[#FFB703] rounded-md">
+                  <div className="p-1.5 rounded-md" style={{ background: '#FBBF24' }}>
                     <CalendarDays size={15} className="text-gray-900" />
                   </div>
-                  <h2 className="text-sm font-bold text-[#111827]">Weekly Management Summary</h2>
+                  <h2
+                    className="text-sm font-bold"
+                    style={{ color: 'var(--color-text-primary)' }}
+                  >
+                    Weekly Management Summary
+                  </h2>
                 </div>
                 <button
                   onClick={() => setShowWeeklySummary(false)}
-                  className="p-1.5 rounded-md text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+                  className="p-1.5 rounded-md transition-colors hover:bg-gray-100/30"
+                  style={{ color: 'var(--color-text-secondary)' }}
                 >
                   <X size={16} />
                 </button>
               </div>
 
               {loadingSummary ? (
-                <div className="py-12 text-center text-sm text-gray-700 flex flex-col items-center justify-center gap-2">
+                <div className="py-12 text-center text-sm flex flex-col items-center justify-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
                   <Clock className="animate-spin text-amber-500" size={24} />
                   <span>Calculating from MongoDB history...</span>
                 </div>
@@ -432,7 +590,6 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
                 </div>
               ) : weeklySummary ? (
                 <div className="space-y-4">
-
                   {/* Overall Health Score Banner */}
                   <div className={`p-4 rounded-xl border-2 flex items-center justify-between ${
                     weeklySummary.overallHealth === 'Excellent' ? 'bg-emerald-50 border-emerald-300' :
@@ -455,9 +612,11 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
                     </div>
                   </div>
 
-                  {/* Weekly Overview - Sentiment Breakdown */}
+                  {/* Weekly Overview */}
                   <div>
-                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-700 mb-2">Weekly Overview · {weeklySummary.totalReviews} Reviews Analyzed</h3>
+                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-700 mb-2">
+                      Weekly Overview · {weeklySummary.totalReviews} Reviews Analyzed
+                    </h3>
                     <div className="grid grid-cols-3 gap-2.5">
                       <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-center">
                         <Smile size={14} className="mx-auto text-emerald-600 mb-1" />
@@ -477,7 +636,7 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
                     </div>
                   </div>
 
-                  {/* Strength & Concern Analysis */}
+                  {/* Strength & Concern */}
                   <div className="grid grid-cols-2 gap-2.5">
                     <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-lg">
                       <div className="text-[9px] font-bold uppercase tracking-wider text-emerald-700 mb-1.5">✦ Strength Analysis</div>
@@ -551,7 +710,8 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
 
               <button
                 onClick={() => setShowWeeklySummary(false)}
-                className="mt-5 w-full px-4 py-2.5 bg-[#FFB703] hover:bg-[#ffa700] text-gray-900 rounded-md text-xs font-bold transition-colors border border-amber-500/20"
+                className="mt-5 w-full px-4 py-2.5 text-gray-900 rounded-lg text-xs font-bold transition-all border hover:brightness-95"
+                style={{ background: '#FBBF24', borderColor: 'rgba(251,191,36,0.3)' }}
               >
                 Close Report
               </button>
