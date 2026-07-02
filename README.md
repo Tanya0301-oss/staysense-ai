@@ -61,6 +61,30 @@ graph TD
 
 ---
 
+## 🗄 Database
+
+StaySense AI leverages **MongoDB Atlas** as its cloud database provider, integrated seamlessly with the backend services using **Mongoose** ODM.
+
+### Why MongoDB was Chosen:
+*   **Flexible Document Model:** Allows stored review structures, AI responses, and alert structures to evolve without complex migration cycles.
+*   **AI-Generated Review Storage:** Persists nested array elements and complex key-value pairs (sentiment, scores, responses) naturally in a JSON-like format.
+*   **Historical Analytics:** Efficiently aggregates analytical summaries, trend logs, and alert states across large datasets.
+*   **Scalability:** Horizontal scaling and dynamic clustering capabilities of MongoDB Atlas support high-throughput review batches.
+*   **Easy Express Integration:** Mongoose schemas map perfectly to Express controllers, enabling developer productivity and clean data modeling.
+
+---
+
+## 🗂 Database Schema
+
+![Database Schema](assets/schema-diagram.png)
+
+The schema diagram represents the MongoDB collections and their relationships:
+*   `AnalysisSession`: Groups reviews from a single batch analysis request. Each session is identified by a unique `requestId` UUID and tracks summary metrics (`reviewCount`, `successCount`, `failedCount`).
+*   `Review`: Stores individual guest reviews along with the AI classifications (`sentiment`, `theme`), the AI-generated `response` suggestions, and references to its parent `AnalysisSession` (`sessionId`).
+*   `AlertReadState`: Tracks the read/unread state of system alerts generated from analyzing historical review logs.
+
+---
+
 ## 📁 Folder Structure
 
 ### Backend Layout
@@ -456,6 +480,11 @@ cd staysense-ai
     ```
     *Open the URL printed in terminal (default `http://localhost:5173`) in your web browser.*
 
+### Environment Variables
+Sensitive configuration credentials and API keys are not committed to Git source control. The project relies on `.env` files located in the `backend/` and `frontend/` folders. You can use the provided `.env.example` files in each directory as a reference configuration template:
+*   For the backend, configure `backend/.env` based on [backend/.env.example](file:///d:/homestay/backend/.env.example).
+*   For the frontend, configure `frontend/.env` based on [frontend/.env.example](file:///d:/homestay/frontend/.env.example).
+
 ---
 
 ## 🔑 Environment Variables
@@ -493,47 +522,19 @@ VITE_API_URL=http://localhost:3000
 
 ---
 
-## 🖼️ Application Interfaces (Screenshots)
+## 📸 Application Screenshots
 
-*Below are structural layout representations of the main StaySense AI application views.*
+### Dashboard
+![Dashboard](assets/dashboard.png)
+A real-time insights dashboard visualizing key metrics, weekly summaries, active guest alerts, and sentiment trends.
 
-### 1. Intelligence Console (Analysis Screen)
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│  StaySense AI  [ Analyzer ]  [ History ]  [ Analytics & Weekly ]  [☀]  │
-├────────────────────────────────────────────────────────────────────────┤
-│                                                                        │
-│  Submit Guest Reviews                                                  │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ "The room was beautiful but the kitchen sink had a leak. Host    │  │
-│  │ was fast to respond..."                                          │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-│  [ Select Import File (CSV) ]                    [ Submit Analysis ]   │
-│                                                                        │
-│  Analysis Results (1)                                                  │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │  Theme: Experience  |  Sentiment: Positive  |  Risk: Low         │  │
-│  │  AI Response Suggestion:                                         │  │
-│  │  "We're glad you enjoyed the room and appreciated the host's      │  │
-│  │   prompt action on the leak. We have fixed the sink completely." │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-└────────────────────────────────────────────────────────────────────────┘
-```
+### Review Analyzer
+![Review Analyzer](assets/analyzer.png)
+The AI review submit console for submitting guest reviews (individually or in bulk) to perform zero-shot sentiment classification, theme detection, and suggestions response generation.
 
-### 2. Analytical Dashboard
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│  StaySense AI  [ Analyzer ]  [ History ]  [ Analytics & Weekly ]  [☾]  │
-├────────────────────────────────────────────────────────────────────────┤
-│  ⚡ Weekly Summary      🚨 Active Alerts         📈 Sentiment Trends    │
-│  ┌──────────────────┐  ┌───────────────────┐   ┌────────────────────┐   │
-│  │ Total: 45        │  │ Cleanliness Issues│   │ Positive:  ■■■■ 70%│   │
-│  │ Positive: 82%    │  │ detected at Host  │   │ Neutral:   ■■ 20%  │   │
-│  │ Main Theme: Host │  │ (Hygiene Alert)   │   │ Negative:  ■ 10%   │   │
-│  └──────────────────┘  └───────────────────┘   └────────────────────┘   │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
+### History
+![History](assets/history.png)
+The historical reviews log allowing administrators and managers to view past analysis sessions, filter results, and delete logs.
 ---
 
 ## 🔮 Future Enhancements
