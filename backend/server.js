@@ -9,6 +9,12 @@ if (!config.groq.apiKey) {
   process.exit(1);
 }
 
+if (!config.jwt.secret) {
+  logger.error("JWT_SECRET is not set. Server cannot start. Generate one with: node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\"");
+  process.exit(1);
+}
+
+
 // ── Bootstrap ─────────────────────────────────────────
 // Connect to MongoDB first, then start the Express server.
 async function start() {

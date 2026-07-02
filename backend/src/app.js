@@ -2,19 +2,32 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const cookieParser = require("cookie-parser");
+const mongoSanitize = require("express-mongo-sanitize");
 const config = require("./config");
 const reviewRoutes = require("./routes/reviewRoutes");
 const historyRoutes = require("./routes/historyRoutes");
+const authRoutes = require("./routes/authRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const requestLogger = require("./middleware/requestLogger");
 
 const app = express();
 
-// ── Security ──────────────────────────────────────────
+// ── Security Headers ──────────────────────────────────────
 app.use(helmet());
-app.use(cors());
 
-// ── Rate Limiting ─────────────────────────────────────
+// ── Secure CORS ───────────────────────────────────────────
+// credentials: true is required for HTTP-only cookies to be sent cross-origin
+app.use(
+  cors({
+    origin: config.cors.origin,
+    credentials: true,          // Allow cookies in cross-origin requests
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// ── Global Rate Limiting ──────────────────────────────────
 app.use(
   "/api/",
   rateLimit({
@@ -32,14 +45,43 @@ app.use(
   })
 );
 
-// ── Body Parsing ──────────────────────────────────────
+// ── Stricter rate limit for auth endpoints ────────────────
+// Prevents brute-force attacks on the login endpoint
+app.use(
+  "/api/auth/login",
+  rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,                   // 10 attempts per window
+    standardHeaders: false,    // Don't expose rate limit headers on auth routes
+    legacyHeaders: false,
+    skipSuccessfulRequests: true, // Only count failed attempts
+    message: {
+      success: false,
+      error: {
+        code: "TOO_MANY_LOGIN_ATTEMPTS",
+        message: "Too many login attempts. Please try again in 15 minutes.",
+      },
+    },
+  })
+);
+
+// ── Body Parsing ──────────────────────────────────────────
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ── Request Logging ───────────────────────────────────
+// ── Cookie Parser ─────────────────────────────────────────
+// Required to read JWT from HTTP-only cookies
+app.use(cookieParser());
+
+// ── MongoDB Query Sanitization ────────────────────────────
+// Strips keys starting with $ or containing . to prevent NoSQL injection
+app.use(mongoSanitize());
+
+// ── Request Logging ───────────────────────────────────────
 app.use(requestLogger);
 
-// ── Routes ────────────────────────────────────────────
+// ── Routes ────────────────────────────────────────────────
+app.use("/api/auth", authRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/history", historyRoutes);
 
@@ -47,9 +89,12 @@ app.use("/api/history", historyRoutes);
 app.get("/", (_req, res) => {
   res.json({
     success: true,
-    service: "Homestay Review Sentiment Classifier",
-    version: "1.0.0",
+    service: "StaySense AI",
+    version: "2.0.0",
     endpoints: {
+      login: "POST   /api/auth/login",
+      logout: "POST   /api/auth/logout",
+      me: "GET    /api/auth/me",
       analyze: "POST   /api/reviews/analyze",
       health: "GET    /api/reviews/health",
       history: "GET    /api/history",
@@ -60,7 +105,7 @@ app.get("/", (_req, res) => {
   });
 });
 
-// ── 404 Handler ───────────────────────────────────────
+// ── 404 Handler ───────────────────────────────────────────
 app.use((_req, res) => {
   res.status(404).json({
     success: false,
@@ -68,7 +113,7 @@ app.use((_req, res) => {
   });
 });
 
-// ── Global Error Handler (must be last) ───────────────
+// ── Global Error Handler (must be last) ───────────────────
 app.use(errorHandler);
 
 module.exports = app;

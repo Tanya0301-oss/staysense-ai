@@ -9,8 +9,12 @@ const {
   getWeeklySummary,
   getTrends,
 } = require("../controllers/historyController");
+const { protect } = require("../middleware/authMiddleware");
 
 const router = Router();
+
+// ── All history routes require authentication ──────────────
+router.use(protect);
 
 // Aggregate stats — must be BEFORE /:requestId to avoid "stats" being parsed as a requestId
 router.get("/stats/summary", getStatsSummary);

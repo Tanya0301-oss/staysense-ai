@@ -8,6 +8,10 @@ const logger = require("../utils/logger");
  *
  * Handles both single and batch review analysis.
  * req.reviewTexts is populated by the validateReview middleware.
+ * req.user is populated by the authMiddleware.protect middleware.
+ *
+ * The resulting AnalysisSession is bound to req.user._id so that
+ * only the authenticated user can access it in future requests.
  */
 async function analyzeReviews(req, res, next) {
   const requestId = uuidv4();
@@ -16,6 +20,7 @@ async function analyzeReviews(req, res, next) {
   logger.info("Analysis request received", {
     requestId,
     reviewCount: reviews.length,
+    userId: req.user._id.toString(),
   });
 
   try {
@@ -30,9 +35,9 @@ async function analyzeReviews(req, res, next) {
 
     logger.info("Analysis complete", { requestId, resultCount: data.length });
 
-    // Save successful review analysis results to MongoDB (blocking)
+    // Save analysis results to MongoDB, scoped to the authenticated user
     try {
-      await saveAnalysis(requestId, data);
+      await saveAnalysis(requestId, data, req.user._id);
     } catch (dbErr) {
       logger.error("Failed to save analysis to database", {
         requestId,

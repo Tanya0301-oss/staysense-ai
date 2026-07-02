@@ -7,16 +7,18 @@ const logger = require("../utils/logger");
 // ── Write Operations ──────────────────────────────────────
 
 /**
- * Persist an analysis result to MongoDB.
+ * Persist an analysis result to MongoDB, tied to the authenticated user.
  *
  * Creates an AnalysisSession document and individual Review documents
- * for each classified review in the batch.
+ * for each classified review in the batch. The session is owned by userId
+ * so it is invisible to all other users.
  *
  * @param {string} requestId — UUID from the controller
  * @param {Array<{review: string, sentiment?: string, theme?: string, response?: string, error?: string}>} results
+ * @param {string|ObjectId} userId — The authenticated user's ID
  * @returns {Promise<{sessionId: string, saved: number}>}
  */
-async function saveAnalysis(requestId, results) {
+async function saveAnalysis(requestId, results, userId) {
   if (!isConnected()) {
     logger.warn("MongoDB not connected — skipping persistence", { requestId });
     return null;
@@ -28,6 +30,7 @@ async function saveAnalysis(requestId, results) {
   // 1. Create the session document first (we need its _id for reviews)
   const session = await AnalysisSession.create({
     requestId,
+    user: userId,           // ← data isolation: bind to the authenticated user
     reviewCount: results.length,
     successCount: successResults.length,
     failedCount: failedResults.length,
@@ -41,7 +44,7 @@ async function saveAnalysis(requestId, results) {
       requestId,
       review: r.review,
       sentiment: r.error ? "Neutral" : r.sentiment, // default for failed reviews
-      theme: r.error ? "Experience" : r.theme, // default for failed reviews
+      theme: r.error ? "Experience" : r.theme,       // default for failed reviews
       response: r.error ? "" : r.response,
       error: r.error || null,
     }))
@@ -55,6 +58,7 @@ async function saveAnalysis(requestId, results) {
     requestId,
     sessionId: session._id.toString(),
     reviewsSaved: reviewDocs.length,
+    userId: userId?.toString(),
   });
 
   return {
@@ -66,23 +70,25 @@ async function saveAnalysis(requestId, results) {
 // ── Read Operations ───────────────────────────────────────
 
 /**
- * List all analysis sessions, paginated, newest first.
+ * List analysis sessions for a specific user, paginated, newest first.
  *
  * @param {number} page — 1-indexed page number
  * @param {number} limit — items per page
+ * @param {string|ObjectId} userId — Only return sessions owned by this user
  * @returns {Promise<{sessions: Array, total: number, page: number, totalPages: number}>}
  */
-async function listSessions(page = 1, limit = 20) {
+async function listSessions(page = 1, limit = 20, userId) {
   const skip = (page - 1) * limit;
+  const filter = { user: userId };
 
   const [sessions, total] = await Promise.all([
-    AnalysisSession.find()
+    AnalysisSession.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .populate("reviews")
       .lean(),
-    AnalysisSession.countDocuments(),
+    AnalysisSession.countDocuments(filter),
   ]);
 
   return {
@@ -95,12 +101,14 @@ async function listSessions(page = 1, limit = 20) {
 
 /**
  * Get a single analysis session with all its review details.
+ * Scoped to the owner — cannot access another user's session even with the requestId.
  *
  * @param {string} requestId — The UUID of the session
+ * @param {string|ObjectId} userId — Must match the session's owner
  * @returns {Promise<object|null>}
  */
-async function getSessionByRequestId(requestId) {
-  const session = await AnalysisSession.findOne({ requestId })
+async function getSessionByRequestId(requestId, userId) {
+  const session = await AnalysisSession.findOne({ requestId, user: userId })
     .populate("reviews")
     .lean();
 
@@ -108,28 +116,31 @@ async function getSessionByRequestId(requestId) {
 }
 
 /**
- * Aggregate statistics across all stored reviews.
+ * Aggregate statistics across the authenticated user's stored reviews only.
  *
- * Returns total counts, sentiment breakdown, and theme breakdown.
- *
+ * @param {string|ObjectId} userId
  * @returns {Promise<object>}
  */
-async function getStats() {
+async function getStats(userId) {
+  // First, collect the session IDs that belong to this user
+  const userSessions = await AnalysisSession.find({ user: userId }).select("_id").lean();
+  const sessionIds = userSessions.map((s) => s._id);
+
   const [
     totalSessions,
     totalReviews,
     sentimentBreakdown,
     themeBreakdown,
   ] = await Promise.all([
-    AnalysisSession.countDocuments(),
-    Review.countDocuments({ error: null }),
+    Promise.resolve(userSessions.length),
+    Review.countDocuments({ sessionId: { $in: sessionIds }, error: null }),
     Review.aggregate([
-      { $match: { error: null } },
+      { $match: { sessionId: { $in: sessionIds }, error: null } },
       { $group: { _id: "$sentiment", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
     ]),
     Review.aggregate([
-      { $match: { error: null } },
+      { $match: { sessionId: { $in: sessionIds }, error: null } },
       { $group: { _id: "$theme", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
     ]),
@@ -158,12 +169,15 @@ async function getStats() {
 
 /**
  * Delete an analysis session and all its child review documents.
+ * Scoped to owner — cannot delete another user's session.
  *
  * @param {string} requestId — The UUID of the session to delete
- * @returns {Promise<{deletedSession: boolean, deletedReviews: number}>}
+ * @param {string|ObjectId} userId — Must match the session's owner
+ * @returns {Promise<{deletedSession: boolean, deletedReviews: number}|null>}
  */
-async function deleteSession(requestId) {
-  const session = await AnalysisSession.findOne({ requestId });
+async function deleteSession(requestId, userId) {
+  // Ownership check: only find the session if it belongs to this user
+  const session = await AnalysisSession.findOne({ requestId, user: userId });
 
   if (!session) {
     return null;
@@ -178,6 +192,7 @@ async function deleteSession(requestId) {
   logger.info("Analysis session deleted", {
     requestId,
     deletedReviews: deleteResult.deletedCount,
+    userId: userId?.toString(),
   });
 
   return {
@@ -216,22 +231,32 @@ function getRiskScore(row) {
 }
 
 /**
- * Generate data-driven alerts from historical reviews in the last 14 days.
- * Annotates each alert with its MongoDB-persisted read state.
+ * Generate data-driven alerts from the authenticated user's historical reviews.
+ * Annotates each alert with its per-user MongoDB-persisted read state.
+ *
+ * @param {string|ObjectId} userId
  */
-async function getAlertsService() {
+async function getAlertsService(userId) {
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
+  // Get session IDs for this user only
+  const userSessions = await AnalysisSession.find({ user: userId }).select("_id").lean();
+  const sessionIds = userSessions.map((s) => s._id);
+
   // Fallback: if no reviews in last 14 days, use latest 50 reviews for alerts
   let reviews14Days = await Review.find({
+    sessionId: { $in: sessionIds },
     error: null,
     createdAt: { $gte: fourteenDaysAgo }
   }).sort({ createdAt: -1 }).lean();
 
   if (reviews14Days.length === 0) {
-    reviews14Days = await Review.find({ error: null }).sort({ createdAt: -1 }).limit(50).lean();
+    reviews14Days = await Review.find({
+      sessionId: { $in: sessionIds },
+      error: null
+    }).sort({ createdAt: -1 }).limit(50).lean();
   }
 
   const thisWeekReviews = reviews14Days.filter(r => r.createdAt >= sevenDaysAgo);
@@ -319,25 +344,29 @@ async function getAlertsService() {
     }
   });
 
-  // Fetch read states from MongoDB and annotate alerts
+  // Fetch this user's read states from MongoDB and annotate alerts
   const alertIds = alerts.map(a => a.id);
-  const readStates = await AlertReadState.find({ alertKey: { $in: alertIds } }).lean();
+  const readStates = await AlertReadState.find({
+    alertKey: { $in: alertIds },
+    user: userId,
+  }).lean();
   const readSet = new Set(readStates.map(r => r.alertKey));
 
   return alerts.map(a => ({ ...a, read: readSet.has(a.id) }));
 }
 
 /**
- * Mark one or more alert IDs as read, persisted in MongoDB.
+ * Mark one or more alert IDs as read for the authenticated user only.
  *
  * @param {string[]} alertKeys - Array of alert ID strings to mark as read
+ * @param {string|ObjectId} userId
  */
-async function markAlertsReadService(alertKeys) {
+async function markAlertsReadService(alertKeys, userId) {
   if (!Array.isArray(alertKeys) || alertKeys.length === 0) return;
   const ops = alertKeys.map(alertKey => ({
     updateOne: {
-      filter: { alertKey },
-      update: { $set: { alertKey, readAt: new Date() } },
+      filter: { alertKey, user: userId },
+      update: { $set: { alertKey, user: userId, readAt: new Date() } },
       upsert: true,
     }
   }));
@@ -345,13 +374,20 @@ async function markAlertsReadService(alertKeys) {
 }
 
 /**
- * Generate weekly summary statistics from MongoDB history.
+ * Generate weekly summary statistics from the authenticated user's MongoDB history.
+ *
+ * @param {string|ObjectId} userId
  */
-async function getWeeklySummaryService() {
+async function getWeeklySummaryService(userId) {
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
+  // Get session IDs for this user
+  const userSessions = await AnalysisSession.find({ user: userId }).select("_id").lean();
+  const sessionIds = userSessions.map((s) => s._id);
+
   let reviews = await Review.find({
+    sessionId: { $in: sessionIds },
     error: null,
     createdAt: { $gte: sevenDaysAgo }
   }).lean();
@@ -359,7 +395,10 @@ async function getWeeklySummaryService() {
   // Fallback to latest reviews if there are none in the last 7 days (to make demo/local dev functional)
   let isFallback = false;
   if (reviews.length === 0) {
-    reviews = await Review.find({ error: null }).sort({ createdAt: -1 }).limit(50).lean();
+    reviews = await Review.find({
+      sessionId: { $in: sessionIds },
+      error: null
+    }).sort({ createdAt: -1 }).limit(50).lean();
     isFallback = true;
   }
 
@@ -415,8 +454,8 @@ async function getWeeklySummaryService() {
     overallHealth = "Good";
   }
 
-  // Calculate comparison against previous session
-  const latestSessions = await AnalysisSession.find()
+  // Calculate comparison against user's previous session
+  const latestSessions = await AnalysisSession.find({ user: userId })
     .sort({ createdAt: -1 })
     .limit(2)
     .populate("reviews")
@@ -473,10 +512,12 @@ async function getWeeklySummaryService() {
 }
 
 /**
- * Retrieve sentiment trends from the latest 5 sessions.
+ * Retrieve sentiment trends from the authenticated user's latest 5 sessions.
+ *
+ * @param {string|ObjectId} userId
  */
-async function getTrendsService() {
-  const sessions = await AnalysisSession.find()
+async function getTrendsService(userId) {
+  const sessions = await AnalysisSession.find({ user: userId })
     .sort({ createdAt: -1 })
     .limit(5)
     .populate("reviews")

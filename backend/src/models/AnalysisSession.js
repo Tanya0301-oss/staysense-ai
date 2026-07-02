@@ -16,6 +16,15 @@ const AnalysisSessionSchema = new Schema(
       index: true,
     },
 
+    // ── Owner reference ──────────────────────────────────
+    // Every session belongs to exactly one authenticated user.
+    // required: false during initial migration — tighten after running migrateSessionsToUser.js
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+    },
+
     // ── Summary counts ──────────────────────────────────
     reviewCount: {
       type: Number,

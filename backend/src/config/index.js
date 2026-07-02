@@ -36,6 +36,25 @@ const config = {
     uri: process.env.MONGODB_URI || "",
   },
 
+  // ── JWT ──────────────────────────────────────────────
+  jwt: {
+    secret: process.env.JWT_SECRET,
+    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  },
+
+  // ── Cookie ───────────────────────────────────────────
+  cookie: {
+    // In production cookies must only travel over HTTPS
+    secure: process.env.NODE_ENV === "production",
+    // strict in production prevents CSRF; lax allows dev HTTP redirects
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+  },
+
+  // ── CORS ─────────────────────────────────────────────
+  cors: {
+    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+  },
+
   // ── Domain Constants ────────────────────────────────
   allowedSentiments: ["Positive", "Neutral", "Negative"],
   allowedThemes: ["Food", "Host", "Location", "Cleanliness", "Value", "Experience"],

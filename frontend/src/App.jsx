@@ -5,23 +5,59 @@ import Insights from './pages/Insights';
 import History from './pages/History';
 import Help from './pages/Help';
 import Auth from './pages/Auth';
-import Showcase from './pages/Showcase';
+import { useAuth } from './context/AuthContext';
 import './App.css';
 
+/**
+ * Full-screen loading spinner shown while the auth check is in flight.
+ * Prevents a flash of the login page on refresh when the user is already authenticated.
+ */
+function AuthLoading() {
+  return (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center gap-4"
+      style={{ background: 'var(--color-bg)' }}
+    >
+      <div
+        className="w-10 h-10 rounded-lg flex items-center justify-center shadow-md"
+        style={{ background: '#FBBF24' }}
+      >
+        <span className="text-gray-900 font-black text-sm">S</span>
+      </div>
+      <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+        <svg
+          className="animate-spin w-4 h-4 text-[#FBBF24]"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+        </svg>
+        Checking session…
+      </div>
+    </div>
+  );
+}
+
 function App() {
-  // Auth gate — no backend needed; just tracks whether user clicked "Log In / Create Account"
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { user, loading } = useAuth();
 
   const [currentPage, setCurrentPage] = useState('analyzer');
   const [reviewsData, setReviewsData] = useState([]);
   const [inputText, setInputText] = useState('');
 
+  // ── Session restore in progress ───────────────────────────
+  // Show a loading screen while the /me check is in flight.
+  // Prevents flashing the login page when the user is already logged in.
+  if (loading) {
+    return <AuthLoading />;
+  }
+
   // ── Auth screen ───────────────────────────────────────────
-  // If the user hasn't "logged in" yet, render the auth page outside the layout
-  if (!isAuthenticated) {
-    return (
-      <Auth onAuthSuccess={() => setIsAuthenticated(true)} />
-    );
+  // User is not authenticated — show the login page only
+  if (!user) {
+    return <Auth />;
   }
 
   // Handle loading a session from history
@@ -55,8 +91,6 @@ function App() {
             setPreloadedText={setInputText}
           />
         );
-      case 'showcase':
-        return <Showcase />;
       default:
         return (
           <ReviewAnalyzer

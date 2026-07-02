@@ -17,13 +17,25 @@ import {
   Activity,
   Sun,
   Moon,
-  Layers,
+  LogOut,
 } from 'lucide-react';
 import { getAlertsApi, getWeeklySummaryApi, markAlertsReadApi } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function DashboardLayout({ children, currentPage, setCurrentPage }) {
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+
+  const getInitials = (name) => {
+    if (!name) return 'US';
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  };
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showWeeklySummary, setShowWeeklySummary] = useState(false);
@@ -129,12 +141,6 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
       icon: HelpCircle,
       description: 'Documentation & guide'
     },
-    {
-      id: 'showcase',
-      name: 'UI Showcase',
-      icon: Layers,
-      description: 'Component library demo'
-    },
   ];
 
   const NavItem = ({ item, onClick }) => {
@@ -227,18 +233,31 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
           className="p-4 border-t shrink-0"
           style={{ borderColor: 'var(--color-border)' }}
         >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#FFB703] flex items-center justify-center text-xs font-bold text-gray-900 border border-amber-500/30 shrink-0 shadow-sm">
-              ST
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-[#FFB703] flex items-center justify-center text-xs font-bold text-gray-900 border border-amber-500/30 shrink-0 shadow-sm">
+                {getInitials(user?.name)}
+              </div>
+              <div className="min-w-0">
+                <p
+                  className="text-xs font-semibold truncate"
+                  style={{ color: 'var(--color-text-primary)' }}
+                >
+                  {user?.name || 'Staff Member'}
+                </p>
+                <p className="text-[10px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
+                  {user?.role || 'Admin'}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p
-                className="text-xs font-semibold truncate"
-                style={{ color: 'var(--color-text-primary)' }}
-              >
-                Staff Member
-              </p>
-            </div>
+            <button
+              onClick={logout}
+              className="p-1.5 rounded-md hover:bg-rose-500/10 hover:text-rose-500 transition-colors shrink-0"
+              title="Log Out"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         </div>
       </aside>
@@ -295,18 +314,34 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
               className="p-4 border-t shrink-0"
               style={{ borderColor: 'var(--color-border)' }}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#FFB703] flex items-center justify-center text-xs font-bold text-gray-900 shadow-sm">
-                  ST
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-[#FFB703] flex items-center justify-center text-xs font-bold text-gray-900 shadow-sm shrink-0">
+                    {getInitials(user?.name)}
+                  </div>
+                  <div className="min-w-0">
+                    <p
+                      className="text-xs font-semibold truncate"
+                      style={{ color: 'var(--color-text-primary)' }}
+                    >
+                      {user?.name || 'Staff Member'}
+                    </p>
+                    <p className="text-[10px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
+                      {user?.role || 'Admin'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p
-                    className="text-xs font-semibold"
-                    style={{ color: 'var(--color-text-primary)' }}
-                  >
-                    Staff Member
-                  </p>
-                </div>
+                <button
+                  onClick={() => {
+                    logout();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="p-1.5 rounded-md hover:bg-rose-500/10 hover:text-rose-500 transition-colors shrink-0"
+                  title="Log Out"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                >
+                  <LogOut size={16} />
+                </button>
               </div>
             </div>
           </div>

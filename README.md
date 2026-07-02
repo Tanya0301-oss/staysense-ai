@@ -512,6 +512,14 @@ LLM_TIMEOUT_MS=30000
 
 # ── MongoDB Atlas Configuration ──────────────────────
 MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/staysense
+
+# ── SaaS Authentication & Security ───────────────────
+# Secret used to sign JSON Web Tokens (JWT)
+JWT_SECRET=your_jwt_secret_hex_here
+# JWT expiration duration
+JWT_EXPIRES_IN=7d
+# CORS allowed origin
+CORS_ORIGIN=http://localhost:5173
 ```
 
 ### Frontend (`frontend/.env`)
@@ -519,6 +527,44 @@ MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/staysense
 # Backend API Base URL
 VITE_API_URL=http://localhost:3000
 ```
+
+---
+
+## 🔒 SaaS Multi-User Authentication & Security
+
+StaySense AI has been upgraded into a secure, multi-user SaaS dashboard with absolute data isolation between users.
+
+### Security Architecture
+
+*   **HTTP-Only Secure Cookies:** JWT tokens are stored exclusively in HTTP-only cookies (`token`), protecting them against Cross-Site Scripting (XSS) attacks. No tokens are saved in `localStorage` or `sessionStorage`.
+*   **Data Isolation:** All database collections are linked to the authenticated user via their `User` model `ObjectId` ref. Every service query filters records matching the active user (`req.user._id`), preventing horizontal privilege escalation.
+*   **MongoDB Sanitization:** Integrated `express-mongo-sanitize` to strip prohibited characters (like `$` or `.`) to neutralize NoSQL injection vulnerabilities.
+*   **Helmet Headers:** Enforces security policies (CSP, XSS protection, HSTS, iframe embedding protection) through standard Helmet header configurations.
+*   **Brute-Force Protection:** Stricter rate-limiting thresholds applied to the login endpoint (`/api/auth/login`) limiting requests to 10 attempts per 15 minutes.
+*   **Generic Error Messages:** Auth errors do not disclose if the target email is registered or if the password alone was wrong, mitigating user enumeration attacks.
+
+### Authentication Flow
+
+1.  **Browser Access:** Page loads and React's `AuthContext` calls `GET /api/auth/me` with `credentials: 'include'`.
+2.  **Verification:** The `protect` middleware reads the cookie, verifies the signed JWT via `jsonwebtoken`, selects the user (excluding password), and attaches the user document to `req.user`.
+3.  **Authentication Success:** `App.jsx` receives the verified user profile, automatically switches layout, and renders the Dashboard and analytical features.
+4.  **Redirecting Unauthenticated Users:** If verification fails (401), the loading state finishes and immediately redirects the browser to the secure login page.
+
+### Admin Provisioning & Data Migration
+
+Since this dashboard is an internal business tool, there is **no public registration page**. Admin or Manager users must be provisioned securely.
+
+1.  **Seed Default Admin User:** Run the bootstrap script to create the first admin:
+    ```bash
+    node src/scripts/seedAdmin.js
+    ```
+    *Creates user `admin@staysense.ai` with password `Admin@StaySense1`. Configure custom settings by setting `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` in `backend/.env` prior to running.*
+2.  **Migrate Existing MongoDB Records:** For existing MongoDB collections, align all historical sessions with the newly created admin account by running:
+    ```bash
+    node src/scripts/migrateSessionsToUser.js
+    ```
+    *Finds any orphaned `AnalysisSession` records with no `user` field and assigns them to the first Admin user.*
+
 
 ---
 

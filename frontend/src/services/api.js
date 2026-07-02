@@ -1,205 +1,190 @@
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace('localhost', '127.0.0.1');
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const API_TIMEOUT_MS = 60000; // 60 second timeout for batch processing
 
 /**
- * Service to interact with the Homestay Review Sentiment Classifier backend.
- * 
+ * Base fetch wrapper that includes credentials (cookies) on every request.
+ * Throws an error for non-2xx responses with a structured error object.
+ *
+ * @param {string} url
+ * @param {RequestInit} options
+ * @param {number} [timeoutMs]
+ */
+async function apiFetch(url, options = {}, timeoutMs = 10000) {
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      // credentials: 'include' sends HTTP-only cookies automatically on every request
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+      signal: abortController.signal,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const error = new Error(data.error?.message || data.message || `API error (HTTP ${response.status})`);
+      error.code = data.error?.code || 'API_ERROR';
+      error.status = response.status;
+      error.details = data.error;
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      const timeoutError = new Error('Request timed out. Please try again.');
+      timeoutError.code = 'TIMEOUT_ERROR';
+      timeoutError.isRetryable = true;
+      throw timeoutError;
+    }
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      const networkError = new Error('Unable to connect to the backend. Please ensure the server is running.');
+      networkError.code = 'NETWORK_ERROR';
+      networkError.isRetryable = true;
+      throw networkError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// ── Auth API ──────────────────────────────────────────────
+
+/**
+ * Authenticate a user. The server sets an HTTP-only cookie on success.
+ * @param {string} email
+ * @param {string} password
+ * @returns {Promise<{success: boolean, data: {user: object}}>}
+ */
+export async function loginApi(email, password) {
+  return apiFetch(`${API_BASE_URL}/api/auth/login`, {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+/**
+ * End the session. The server clears the HTTP-only cookie.
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+export async function logoutApi() {
+  return apiFetch(`${API_BASE_URL}/api/auth/logout`, { method: 'POST' });
+}
+
+/**
+ * Fetch the currently authenticated user's profile.
+ * Used on app mount to restore a session from an existing cookie.
+ * @returns {Promise<{success: boolean, data: {user: object}}>}
+ */
+export async function getMeApi() {
+  return apiFetch(`${API_BASE_URL}/api/auth/me`);
+}
+
+// ── Review Analysis API ───────────────────────────────────
+
+/**
+ * Submit one or more reviews for AI analysis.
+ *
  * @param {string[]} reviews - Array of review texts to analyze
  * @returns {Promise<{success: boolean, count: number, data: Array}>}
- * @throws {Error} Various error types for different failure scenarios
  */
 export async function analyzeReviewsApi(reviews) {
   try {
-    // Create abort controller for timeout handling
-    const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), API_TIMEOUT_MS);
+    const data = await apiFetch(
+      `${API_BASE_URL}/api/reviews/analyze`,
+      { method: 'POST', body: JSON.stringify({ reviews }) },
+      API_TIMEOUT_MS
+    );
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/reviews/analyze`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ reviews }),
-        signal: abortController.signal,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        const errorMsg = data.error?.message || data.message || `API error (HTTP ${response.status})`;
-        const errorCode = data.error?.code || 'API_ERROR';
-        
-        // Create detailed error for specific scenarios
-        const error = new Error(errorMsg);
-        error.code = errorCode;
-        error.status = response.status;
-        error.details = data.error;
-        
-        throw error;
-      }
-
-      // Validate response structure
-      if (!data.success || !Array.isArray(data.data)) {
-        const error = new Error('Invalid response format from API');
-        error.code = 'INVALID_RESPONSE';
-        error.details = data;
-        throw error;
-      }
-
-      return data;
-    } finally {
-      clearTimeout(timeoutId);
+    // Validate response structure
+    if (!data.success || !Array.isArray(data.data)) {
+      const error = new Error('Invalid response format from API');
+      error.code = 'INVALID_RESPONSE';
+      throw error;
     }
+
+    return data;
   } catch (error) {
-    // Enhance error with specific type information
-    if (error.name === 'AbortError') {
-      const timeoutError = new Error('Request timed out. The AI service took too long to respond. Please try with fewer reviews or try again later.');
-      timeoutError.code = 'TIMEOUT_ERROR';
-      timeoutError.isRetryable = true;
-      console.error('API timeout:', error);
-      throw timeoutError;
-    }
-
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      const networkError = new Error('Unable to connect to the backend API. Please verify the API URL and ensure the backend server is running.');
-      networkError.code = 'NETWORK_ERROR';
-      networkError.isRetryable = true;
-      console.error('Network error:', error);
-      throw networkError;
-    }
-
-    // Pass through our enhanced errors
     if (error.code) {
       console.error('API service error:', error.code, error.message);
       throw error;
     }
-
-    // Generic error fallback
-    const genericError = new Error(error.message || 'An unexpected error occurred while contacting the API');
+    const genericError = new Error(error.message || 'An unexpected error occurred');
     genericError.code = 'UNKNOWN_ERROR';
-    genericError.originalError = error;
-    console.error('API service error:', genericError);
     throw genericError;
   }
 }
 
 /**
- * Service to check backend health and connectivity.
- * Used to verify API is reachable before submitting requests.
- * 
- * @returns {Promise<boolean>} True if backend is healthy, false otherwise
+ * Check backend health and connectivity.
+ * @returns {Promise<boolean>} True if backend is healthy
  */
 export async function checkBackendHealth() {
   try {
-    const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 5000); // 5s timeout for health check
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/reviews/health`, {
-        signal: abortController.signal,
-      });
-      
-      if (!response.ok) {
-        console.warn(`Health check returned status ${response.status}`);
-        return false;
-      }
-      
-      const data = await response.json();
-      return data.success && data.status === 'healthy';
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  } catch (error) {
-    console.warn('Health check failed:', error.message);
+    const data = await apiFetch(`${API_BASE_URL}/api/reviews/health`, {}, 5000);
+    return data.success && data.status === 'healthy';
+  } catch {
     return false;
   }
 }
 
+// ── History API ───────────────────────────────────────────
+
 /**
- * Service to retrieve analysis history.
- * 
+ * Retrieve the authenticated user's analysis history.
+ *
  * @param {number} page - Page number (starts at 1)
  * @param {number} limit - Items per page
- * @returns {Promise<{success: boolean, sessions: Array, total: number, page: number, totalPages: number}>}
  */
 export async function getHistoryApi(page = 1, limit = 10) {
-  const response = await fetch(`${API_BASE_URL}/api/history?page=${page}&limit=${limit}`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch history (HTTP ${response.status})`);
-  }
-  return response.json();
+  return apiFetch(`${API_BASE_URL}/api/history?page=${page}&limit=${limit}`);
 }
 
 /**
- * Service to delete a historical session.
- * 
+ * Delete a historical session owned by the authenticated user.
+ *
  * @param {string} requestId - UUID of the session to delete
- * @returns {Promise<{success: boolean, message: string}>}
  */
 export async function deleteSessionApi(requestId) {
-  const response = await fetch(`${API_BASE_URL}/api/history/${requestId}`, {
-    method: 'DELETE',
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to delete session (HTTP ${response.status})`);
-  }
-  return response.json();
+  return apiFetch(`${API_BASE_URL}/api/history/${requestId}`, { method: 'DELETE' });
 }
 
 /**
- * Service to retrieve dynamic alerts generated from MongoDB data.
- * 
- * @returns {Promise<{success: boolean, data: Array}>}
+ * Retrieve dynamic alerts generated from the authenticated user's data.
  */
 export async function getAlertsApi() {
-  const response = await fetch(`${API_BASE_URL}/api/history/alerts`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch alerts (HTTP ${response.status})`);
-  }
-  return response.json();
+  return apiFetch(`${API_BASE_URL}/api/history/alerts`);
 }
 
 /**
- * Service to retrieve weekly summary stats.
- * 
- * @returns {Promise<{success: boolean, data: object}>}
+ * Retrieve weekly summary stats for the authenticated user.
  */
 export async function getWeeklySummaryApi() {
-  const response = await fetch(`${API_BASE_URL}/api/history/weekly-summary`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch weekly summary (HTTP ${response.status})`);
-  }
-  return response.json();
+  return apiFetch(`${API_BASE_URL}/api/history/weekly-summary`);
 }
 
 /**
- * Service to retrieve daily historical trends.
- * 
- * @returns {Promise<{success: boolean, data: Array}>}
+ * Retrieve daily historical trends for the authenticated user.
  */
 export async function getTrendsApi() {
-  const response = await fetch(`${API_BASE_URL}/api/history/trends`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch trends (HTTP ${response.status})`);
-  }
-  return response.json();
+  return apiFetch(`${API_BASE_URL}/api/history/trends`);
 }
 
 /**
- * Service to mark one or more alerts as read in MongoDB.
- * 
+ * Mark one or more alerts as read for the authenticated user.
+ *
  * @param {string[]} alertIds - Array of alert ID strings to mark as read
- * @returns {Promise<{success: boolean, message: string}>}
  */
 export async function markAlertsReadApi(alertIds) {
-  const response = await fetch(`${API_BASE_URL}/api/history/alerts/read`, {
+  return apiFetch(`${API_BASE_URL}/api/history/alerts/read`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ alertIds }),
   });
-  if (!response.ok) {
-    throw new Error(`Failed to mark alerts as read (HTTP ${response.status})`);
-  }
-  return response.json();
 }
