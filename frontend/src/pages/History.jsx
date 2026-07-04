@@ -83,7 +83,7 @@ export default function HistoryPage({ onLoadSession }) {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[#111827] md:text-3xl">Analysis History</h1>
         <p className="mt-1.5 text-[#374151] max-w-2xl text-sm md:text-base leading-relaxed">
-          Browse previous review analysis sessions stored in MongoDB Atlas. Load any past session to restore results.
+
         </p>
       </div>
 
@@ -117,7 +117,7 @@ export default function HistoryPage({ onLoadSession }) {
             <span className="text-xs text-gray-700 font-semibold">Loading database records...</span>
           </div>
 
-        /* Error State */
+          /* Error State */
         ) : historyError ? (
           <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
             <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center border border-rose-200">
@@ -134,7 +134,7 @@ export default function HistoryPage({ onLoadSession }) {
             </div>
           </div>
 
-        /* Empty State */
+          /* Empty State */
         ) : historyData.length === 0 ? (
           <div className="p-16 text-center">
             <div className="mx-auto w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center border border-gray-200 mb-3 text-gray-400">
@@ -144,7 +144,7 @@ export default function HistoryPage({ onLoadSession }) {
             <p className="text-xs text-gray-600 font-medium mt-1">Analyze some reviews to populate history.</p>
           </div>
 
-        /* History List */
+          /* History List */
         ) : (
           <div className="divide-y divide-gray-100 text-xs">
             {historyData.map((session) => {

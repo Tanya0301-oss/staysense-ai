@@ -28,6 +28,13 @@ async function apiFetch(url, options = {}, timeoutMs = 10000) {
     const data = await response.json();
 
     if (!response.ok) {
+      // If any non-auth API call returns 401, broadcast session-expired event
+      // so AuthContext can clear state and redirect to login.
+      // Exclude auth endpoints themselves — a failed login isn't a session expiry.
+      if (response.status === 401 && !url.includes('/api/auth/login') && !url.includes('/api/auth/register')) {
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      }
+
       const error = new Error(data.error?.message || data.message || `API error (HTTP ${response.status})`);
       error.code = data.error?.code || 'API_ERROR';
       error.status = response.status;
@@ -67,6 +74,21 @@ export async function loginApi(email, password) {
   return apiFetch(`${API_BASE_URL}/api/auth/login`, {
     method: 'POST',
     body: JSON.stringify({ email, password }),
+  });
+}
+
+/**
+ * Register a new user. The server sets an HTTP-only cookie on success (auto-login).
+ * @param {string} name
+ * @param {string} email
+ * @param {string} password
+ * @param {string} confirmPassword
+ * @returns {Promise<{success: boolean, data: {user: object}}>}
+ */
+export async function registerApi(name, email, password, confirmPassword) {
+  return apiFetch(`${API_BASE_URL}/api/auth/register`, {
+    method: 'POST',
+    body: JSON.stringify({ name, email, password, confirmPassword }),
   });
 }
 

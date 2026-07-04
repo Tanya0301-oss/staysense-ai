@@ -39,10 +39,10 @@ const UserSchema = new Schema(
     role: {
       type: String,
       enum: {
-        values: ["Admin", "Manager"],
-        message: "Role must be either Admin or Manager",
+        values: ["Admin", "Manager", "User"],
+        message: "Role must be Admin, Manager, or User",
       },
-      default: "Admin",
+      default: "User",
     },
   },
   {

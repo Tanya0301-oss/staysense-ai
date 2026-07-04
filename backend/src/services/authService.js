@@ -62,7 +62,7 @@ async function loginUser(email, password) {
  * @param {string} [role]
  * @returns {Promise<{ user: object }>}
  */
-async function registerUser(name, email, password, role = "Admin") {
+async function registerUser(name, email, password, role = "User") {
   // Check for duplicate email before letting Mongoose throw a cryptic error
   const existing = await User.findOne({ email: email.toLowerCase().trim() });
   if (existing) {
@@ -71,9 +71,12 @@ async function registerUser(name, email, password, role = "Admin") {
 
   const user = await User.create({ name, email, password, role });
 
+  // Generate JWT so the controller can auto-login the user after registration
+  const token = signToken({ id: user._id, role: user.role });
+
   logger.info("New user registered", { userId: user._id.toString(), email: user.email, role: user.role });
 
-  return { user: user.toJSON() };
+  return { token, user: user.toJSON() };
 }
 
 /**

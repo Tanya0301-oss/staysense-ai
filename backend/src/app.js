@@ -65,6 +65,25 @@ app.use(
   })
 );
 
+// ── Stricter rate limit for register endpoint ─────────────
+// Prevents mass account creation abuse
+app.use(
+  "/api/auth/register",
+  rateLimit({
+    windowMs: 60 * 60 * 1000,   // 1 hour
+    max: 5,                      // 5 registrations per IP per window
+    standardHeaders: false,
+    legacyHeaders: false,
+    message: {
+      success: false,
+      error: {
+        code: "TOO_MANY_REGISTRATIONS",
+        message: "Too many registration attempts. Please try again later.",
+      },
+    },
+  })
+);
+
 // ── Body Parsing ──────────────────────────────────────────
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));

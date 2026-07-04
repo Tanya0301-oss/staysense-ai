@@ -113,23 +113,41 @@ async function me(req, res, next) {
 /**
  * POST /api/auth/register
  *
- * Creates a new user. For internal/admin use only.
- * Not linked from the frontend — no public registration.
+ * Creates a new user account and automatically logs them in.
+ * Issues a JWT stored in an HTTP-only cookie so the user
+ * is immediately authenticated — no separate login required.
  */
 async function register(req, res, next) {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, confirmPassword, role } = req.body;
 
     if (!name || !email || !password) {
       throw new AppError("Name, email, and password are required.", 400, "MISSING_FIELDS");
     }
 
-    // Basic password strength check
+    // Confirm password must match
+    if (password !== confirmPassword) {
+      throw new AppError("Passwords do not match.", 400, "PASSWORD_MISMATCH");
+    }
+
+    // Password strength checks
     if (password.length < 8) {
       throw new AppError("Password must be at least 8 characters.", 400, "WEAK_PASSWORD");
     }
+    if (!/[A-Z]/.test(password)) {
+      throw new AppError("Password must contain at least one uppercase letter.", 400, "WEAK_PASSWORD");
+    }
+    if (!/[a-z]/.test(password)) {
+      throw new AppError("Password must contain at least one lowercase letter.", 400, "WEAK_PASSWORD");
+    }
+    if (!/\d/.test(password)) {
+      throw new AppError("Password must contain at least one digit.", 400, "WEAK_PASSWORD");
+    }
 
-    const { user } = await registerUser(name, email, password, role);
+    const { token, user } = await registerUser(name, email, password, role);
+
+    // Auto-login: set JWT as HTTP-only cookie immediately after registration
+    res.cookie("token", token, getCookieOptions());
 
     res.status(201).json({
       success: true,
