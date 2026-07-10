@@ -1,6 +1,9 @@
 const { loginUser, registerUser, getMe } = require("../services/authService");
 const config = require("../config");
 const AppError = require("../utils/AppError");
+const passport = require("../config/passport");
+const { signToken } = require("../utils/jwt");
+const logger = require("../utils/logger");
 
 // ── Cookie configuration ──────────────────────────────────
 /**
@@ -158,4 +161,48 @@ async function register(req, res, next) {
   }
 }
 
-module.exports = { login, logout, me, register };
+// ── Google OAuth Handlers ──────────────────────────────────────────────────────────
+function googleAuth(req, res, next) {
+  passport.authenticate("google", { scope: ["profile", "email"], session: false })(req, res, next);
+}
+
+function googleCallback(req, res, next) {
+  passport.authenticate("google", { session: false }, (err, user, info) => {
+    if (err || !user) {
+      logger.error("Google OAuth authentication failed", { error: err?.message || info });
+      return res.redirect(`${config.cors.origin}/?oauth=failed`);
+    }
+
+    try {
+      const token = signToken({ id: user._id, role: user.role });
+      res.cookie("token", token, getCookieOptions());
+      return res.redirect(config.cors.origin);
+    } catch (tokenErr) {
+      return next(tokenErr);
+    }
+  })(req, res, next);
+}
+
+// ── GitHub OAuth Handlers ──────────────────────────────────────────────────────────
+function githubAuth(req, res, next) {
+  passport.authenticate("github", { session: false })(req, res, next);
+}
+
+function githubCallback(req, res, next) {
+  passport.authenticate("github", { session: false }, (err, user, info) => {
+    if (err || !user) {
+      logger.error("GitHub OAuth authentication failed", { error: err?.message || info });
+      return res.redirect(`${config.cors.origin}/?oauth=failed`);
+    }
+
+    try {
+      const token = signToken({ id: user._id, role: user.role });
+      res.cookie("token", token, getCookieOptions());
+      return res.redirect(config.cors.origin);
+    } catch (tokenErr) {
+      return next(tokenErr);
+    }
+  })(req, res, next);
+}
+
+module.exports = { login, logout, me, register, googleAuth, googleCallback, githubAuth, githubCallback };

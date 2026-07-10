@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import DashboardLayout from './layouts/DashboardLayout';
 import ReviewAnalyzer from './pages/ReviewAnalyzer';
 import Insights from './pages/Insights';
 import History from './pages/History';
 import Help from './pages/Help';
-import Auth from './pages/Auth';
+import AuthModal from './components/AuthModal';
 import { useAuth } from './context/AuthContext';
 import './App.css';
 
@@ -41,23 +41,15 @@ function AuthLoading() {
 }
 
 function App() {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
   const [currentPage, setCurrentPage] = useState('analyzer');
   const [reviewsData, setReviewsData] = useState([]);
   const [inputText, setInputText] = useState('');
 
-  // ── Session restore in progress ───────────────────────────
   // Show a loading screen while the /me check is in flight.
-  // Prevents flashing the login page when the user is already logged in.
   if (loading) {
     return <AuthLoading />;
-  }
-
-  // ── Auth screen ───────────────────────────────────────────
-  // User is not authenticated — show the login page only
-  if (!user) {
-    return <Auth />;
   }
 
   // Handle loading a session from history
@@ -104,9 +96,12 @@ function App() {
   };
 
   return (
-    <DashboardLayout currentPage={currentPage} setCurrentPage={setCurrentPage}>
-      {renderPage()}
-    </DashboardLayout>
+    <>
+      <DashboardLayout currentPage={currentPage} setCurrentPage={setCurrentPage}>
+        {renderPage()}
+      </DashboardLayout>
+      <AuthModal />
+    </>
   );
 }
 

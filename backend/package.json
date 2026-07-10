@@ -30,6 +30,9 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.6.3",
     "openai": "^4.82.0",
+    "passport": "^0.7.0",
+    "passport-github2": "^0.1.12",
+    "passport-google-oauth20": "^2.0.0",
     "uuid": "^11.1.0"
   }
 }

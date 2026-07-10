@@ -150,7 +150,7 @@ export default function Auth() {
             StaySense AI
           </h1>
           <p className="text-xs text-[var(--color-text-secondary)] mt-1 font-medium">
-            Homestay review intelligence platform
+
           </p>
         </div>
 
@@ -178,11 +178,10 @@ export default function Auth() {
               id="auth-tab-login"
               type="button"
               onClick={() => switchTab('login')}
-              className={`flex-1 py-3 text-xs font-bold tracking-wide transition-all ${
-                activeTab === 'login'
+              className={`flex-1 py-3 text-xs font-bold tracking-wide transition-all ${activeTab === 'login'
                   ? 'text-[#FBBF24] border-b-2 border-[#FBBF24]'
                   : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
-              }`}
+                }`}
             >
               Log In
             </button>
@@ -190,11 +189,10 @@ export default function Auth() {
               id="auth-tab-signup"
               type="button"
               onClick={() => switchTab('signup')}
-              className={`flex-1 py-3 text-xs font-bold tracking-wide transition-all ${
-                activeTab === 'signup'
+              className={`flex-1 py-3 text-xs font-bold tracking-wide transition-all ${activeTab === 'signup'
                   ? 'text-[#FBBF24] border-b-2 border-[#FBBF24]'
                   : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
-              }`}
+                }`}
             >
               Sign Up
             </button>

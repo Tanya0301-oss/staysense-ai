@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Inbox,
   Sparkles,
@@ -21,13 +21,20 @@ import {
 } from 'recharts';
 import { generateReviewDigest, getReviewClusters } from '../services/helpers';
 import { getTrendsApi } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function Insights({ reviewsData }) {
+  const { user, openLoginModal } = useAuth();
   const [trends, setTrends] = useState([]);
   const [loadingTrends, setLoadingTrends] = useState(true);
   const [trendsError, setTrendsError] = useState(null);
 
   useEffect(() => {
+    if (!user) {
+      setTrends([]); // eslint-disable-line react-hooks/set-state-in-effect
+      setLoadingTrends(false);
+      return;
+    }
     let active = true;
     async function loadTrends() {
       try {
@@ -52,7 +59,7 @@ export default function Insights({ reviewsData }) {
     }
     loadTrends();
     return () => { active = false; };
-  }, [reviewsData]);
+  }, [reviewsData, user]);
 
   const validReviews = reviewsData.filter(r => !r.error);
   const digest = generateReviewDigest(reviewsData);
@@ -89,7 +96,23 @@ export default function Insights({ reviewsData }) {
           <h2 className="text-xs font-bold uppercase tracking-wider text-gray-700">Review Clusters</h2>
         </div>
 
-        {clusters.length === 0 ? (
+        {!user ? (
+          <div className="border border-gray-200 border-dashed rounded-xl bg-white p-10 text-center shadow-sm">
+            <div className="mx-auto w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center border border-gray-200 mb-3 text-gray-500">
+              <Inbox size={18} />
+            </div>
+            <h3 className="text-sm font-bold text-gray-800">No clusters yet</h3>
+            <p className="text-xs text-gray-600 max-w-sm mx-auto mt-1.5 leading-relaxed">
+              Sign in to unlock AI insights.
+            </p>
+            <button
+              onClick={openLoginModal}
+              className="mt-4 px-4 py-2 bg-[#FFB703] hover:brightness-95 text-gray-900 rounded-md text-xs font-bold shadow-sm transition-colors border border-amber-500/30 font-semibold"
+            >
+              Sign In
+            </button>
+          </div>
+        ) : clusters.length === 0 ? (
           <div className="border border-gray-200 border-dashed rounded-xl bg-white p-10 text-center shadow-sm">
             <div className="mx-auto w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center border border-gray-200 mb-3 text-gray-500">
               <Inbox size={18} />
@@ -132,7 +155,23 @@ export default function Insights({ reviewsData }) {
           <h2 className="text-xs font-bold uppercase tracking-wider text-gray-700">AI Review Digest</h2>
         </div>
 
-        {!digest ? (
+        {!user ? (
+          <div className="border border-gray-200 border-dashed rounded-xl bg-white p-10 text-center shadow-sm">
+            <div className="mx-auto w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center border border-gray-200 mb-3 text-gray-500">
+              <Sparkles size={18} />
+            </div>
+            <h3 className="text-sm font-bold text-gray-800">No digest available</h3>
+            <p className="text-xs text-gray-600 max-w-sm mx-auto mt-1.5 leading-relaxed">
+              Sign in to unlock AI insights.
+            </p>
+            <button
+              onClick={openLoginModal}
+              className="mt-4 px-4 py-2 bg-[#FFB703] hover:brightness-95 text-gray-900 rounded-md text-xs font-bold shadow-sm transition-colors border border-amber-500/30 font-semibold"
+            >
+              Sign In
+            </button>
+          </div>
+        ) : !digest ? (
           <div className="border border-gray-200 border-dashed rounded-xl bg-white p-10 text-center shadow-sm">
             <div className="mx-auto w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center border border-gray-200 mb-3 text-gray-500">
               <Sparkles size={18} />
@@ -189,6 +228,20 @@ export default function Insights({ reviewsData }) {
           <div className="bg-white border border-gray-200 rounded-xl p-12 text-center flex flex-col items-center justify-center gap-2 shadow-sm text-rose-700">
             <AlertCircle size={24} />
             <span className="text-xs font-semibold">{trendsError}</span>
+          </div>
+        ) : !user ? (
+          <div className="bg-white border border-gray-200 border-dashed rounded-xl p-12 text-center shadow-sm">
+            <Calendar className="mx-auto text-gray-500 mb-2" size={24} />
+            <h3 className="text-sm font-bold text-gray-800">No trend data available.</h3>
+            <p className="text-xs text-gray-600 max-w-sm mx-auto mt-1.5 leading-relaxed">
+              Sign in to track historical trends across your review analysis sessions.
+            </p>
+            <button
+              onClick={openLoginModal}
+              className="mt-4 px-4 py-2 bg-[#FFB703] hover:brightness-95 text-gray-900 rounded-md text-xs font-bold shadow-sm transition-colors border border-amber-500/30 font-semibold"
+            >
+              Sign In
+            </button>
           </div>
         ) : trends.length < 2 ? (
           <div className="bg-white border border-gray-200 border-dashed rounded-xl p-12 text-center shadow-sm">

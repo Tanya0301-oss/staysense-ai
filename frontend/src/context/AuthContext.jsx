@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { loginApi, logoutApi, getMeApi, registerApi } from '../services/api';
 
 /**
@@ -21,6 +22,8 @@ export function AuthProvider({ children }) {
   const [user, setUser]                       = useState(null);
   const [loading, setLoading]                 = useState(true); // true while checking existing session
   const [sessionExpired, setSessionExpired]   = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab]       = useState('welcome'); // 'welcome', 'login', 'signup'
 
   /**
    * Attempt to restore a session by calling the /me endpoint.
@@ -32,10 +35,17 @@ export function AuthProvider({ children }) {
     try {
       const data = await getMeApi();
       // Backend response shape: { success: true, data: { user } }
-      setUser(data.data?.user ?? null);
+      const currentUser = data.data?.user ?? null;
+      setUser(currentUser);
+      if (!currentUser) {
+        setIsAuthModalOpen(true);
+        setAuthModalTab('welcome');
+      }
     } catch {
       // 401 or network error — no valid session
       setUser(null);
+      setIsAuthModalOpen(true);
+      setAuthModalTab('welcome');
     } finally {
       setLoading(false);
     }
@@ -43,7 +53,7 @@ export function AuthProvider({ children }) {
 
   // Run once on mount to restore any existing session
   useEffect(() => {
-    checkAuth();
+    checkAuth(); // eslint-disable-line react-hooks/set-state-in-effect
   }, [checkAuth]);
 
   // ── Global session-expired listener ─────────────────────
@@ -52,6 +62,8 @@ export function AuthProvider({ children }) {
     function handleExpired() {
       setUser(null);
       setSessionExpired(true);
+      setAuthModalTab('login');
+      setIsAuthModalOpen(true);
     }
     window.addEventListener('auth:session-expired', handleExpired);
     return () => window.removeEventListener('auth:session-expired', handleExpired);
@@ -78,6 +90,7 @@ export function AuthProvider({ children }) {
     // Backend response shape: { success: true, data: { user } }
     setUser(data.data?.user ?? null);
     setSessionExpired(false);
+    setIsAuthModalOpen(false);
   }, []);
 
   /**
@@ -95,6 +108,7 @@ export function AuthProvider({ children }) {
     // Backend response shape: { success: true, data: { user } }
     setUser(data.data?.user ?? null);
     setSessionExpired(false);
+    setIsAuthModalOpen(false);
   }, []);
 
   /**
@@ -112,7 +126,24 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, register, checkAuth, sessionExpired, clearSessionExpired }}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      login,
+      logout,
+      register,
+      checkAuth,
+      sessionExpired,
+      clearSessionExpired,
+      isAuthModalOpen,
+      setIsAuthModalOpen,
+      authModalTab,
+      setAuthModalTab,
+      openLoginModal: () => { setAuthModalTab('login'); setIsAuthModalOpen(true); },
+      openSignupModal: () => { setAuthModalTab('signup'); setIsAuthModalOpen(true); },
+      openWelcomeModal: () => { setAuthModalTab('welcome'); setIsAuthModalOpen(true); },
+      closeAuthModal: () => setIsAuthModalOpen(false),
+    }}>
       {children}
     </AuthContext.Provider>
   );

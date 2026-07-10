@@ -10,11 +10,15 @@ const historyRoutes = require("./routes/historyRoutes");
 const authRoutes = require("./routes/authRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const requestLogger = require("./middleware/requestLogger");
+const passport = require("./config/passport");
 
 const app = express();
 
 // ── Security Headers ──────────────────────────────────────
 app.use(helmet());
+
+// ── Initialize Passport for OAuth ─────────────────────────
+app.use(passport.initialize());
 
 // ── Secure CORS ───────────────────────────────────────────
 // credentials: true is required for HTTP-only cookies to be sent cross-origin

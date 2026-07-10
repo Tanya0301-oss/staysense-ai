@@ -27,12 +27,22 @@ const UserSchema = new Schema(
       match: [/^\S+@\S+\.\S+$/, "Please provide a valid email address"],
     },
 
-    // ── Security ─────────────────────────────────────────
     password: {
       type: String,
-      required: [true, "Password is required"],
       minlength: [8, "Password must be at least 8 characters"],
       select: false, // Never returned in queries by default
+    },
+
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+
+    githubId: {
+      type: String,
+      unique: true,
+      sparse: true,
     },
 
     // ── Authorisation ─────────────────────────────────────
@@ -52,8 +62,8 @@ const UserSchema = new Schema(
 
 // ── Pre-save hook: hash password before storing ──────────
 UserSchema.pre("save", async function () {
-  // Only re-hash if the password field has been modified
-  if (!this.isModified("password")) return;
+  // Only re-hash if the password field has been modified and is present
+  if (!this.isModified("password") || !this.password) return;
 
   const SALT_ROUNDS = 12;
   this.password = await bcrypt.hash(this.password, SALT_ROUNDS);

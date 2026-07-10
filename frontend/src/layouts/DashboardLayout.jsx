@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   FileText,
   BarChart3,
@@ -25,7 +25,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function DashboardLayout({ children, currentPage, setCurrentPage }) {
   const { theme, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, openLoginModal } = useAuth();
 
   const getInitials = (name) => {
     if (!name) return 'US';
@@ -47,6 +47,10 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
   const [summaryError, setSummaryError] = useState(null);
 
   useEffect(() => {
+    if (!user) {
+      setAlerts([]); // eslint-disable-line react-hooks/set-state-in-effect
+      return;
+    }
     let active = true;
     async function fetchAlerts() {
       try {
@@ -64,7 +68,7 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
       active = false;
       clearInterval(timer);
     };
-  }, []);
+  }, [user]);
 
   const unreadAlertsCount = alerts.filter(a => !a.read).length;
 
@@ -79,7 +83,7 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
       try {
         const res = await getAlertsApi();
         if (res.success) setAlerts(res.data || []);
-      } catch (_) {}
+      } catch (retryErr) { console.error('Retry failed:', retryErr); }
     }
   };
 
@@ -93,12 +97,18 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
       try {
         const res = await getAlertsApi();
         if (res.success) setAlerts(res.data || []);
-      } catch (_) {}
+      } catch (retryErr) { console.error('Retry failed:', retryErr); }
     }
   };
 
   const handleOpenWeeklySummary = async () => {
     setShowWeeklySummary(true);
+    if (!user) {
+      setWeeklySummary(null);
+      setLoadingSummary(false);
+      setSummaryError(null);
+      return;
+    }
     setLoadingSummary(true);
     setSummaryError(null);
     try {
@@ -228,37 +238,46 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
           ))}
         </nav>
 
-        {/* Staff Footer */}
+        {/* Staff Footer / Guest Sign In CTA */}
         <div
           className="p-4 border-t shrink-0"
           style={{ borderColor: 'var(--color-border)' }}
         >
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-[#FFB703] flex items-center justify-center text-xs font-bold text-gray-900 border border-amber-500/30 shrink-0 shadow-sm">
-                {getInitials(user?.name)}
+          {user ? (
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-[#FFB703] flex items-center justify-center text-xs font-bold text-gray-900 border border-amber-500/30 shrink-0 shadow-sm">
+                  {getInitials(user.name)}
+                </div>
+                <div className="min-w-0">
+                  <p
+                    className="text-xs font-semibold truncate"
+                    style={{ color: 'var(--color-text-primary)' }}
+                  >
+                    {user.name}
+                  </p>
+                  <p className="text-[10px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
+                    {user.role || 'Admin'}
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p
-                  className="text-xs font-semibold truncate"
-                  style={{ color: 'var(--color-text-primary)' }}
-                >
-                  {user?.name || 'Staff Member'}
-                </p>
-                <p className="text-[10px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
-                  {user?.role || 'Admin'}
-                </p>
-              </div>
+              <button
+                onClick={logout}
+                className="p-1.5 rounded-md hover:bg-rose-500/10 hover:text-rose-500 transition-colors shrink-0"
+                title="Log Out"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
+                <LogOut size={16} />
+              </button>
             </div>
+          ) : (
             <button
-              onClick={logout}
-              className="p-1.5 rounded-md hover:bg-rose-500/10 hover:text-rose-500 transition-colors shrink-0"
-              title="Log Out"
-              style={{ color: 'var(--color-text-secondary)' }}
+              onClick={openLoginModal}
+              className="w-full flex items-center justify-center py-2 bg-[#FFB703] hover:brightness-95 text-gray-900 rounded-lg text-xs font-bold shadow-sm transition-all border border-amber-500/20"
             >
-              <LogOut size={16} />
+              Sign In
             </button>
-          </div>
+          )}
         </div>
       </aside>
 
@@ -314,35 +333,47 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
               className="p-4 border-t shrink-0"
               style={{ borderColor: 'var(--color-border)' }}
             >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-[#FFB703] flex items-center justify-center text-xs font-bold text-gray-900 shadow-sm shrink-0">
-                    {getInitials(user?.name)}
+              {user ? (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-[#FFB703] flex items-center justify-center text-xs font-bold text-gray-900 shadow-sm shrink-0">
+                      {getInitials(user.name)}
+                    </div>
+                    <div className="min-w-0">
+                      <p
+                        className="text-xs font-semibold truncate"
+                        style={{ color: 'var(--color-text-primary)' }}
+                      >
+                        {user.name}
+                      </p>
+                      <p className="text-[10px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
+                        {user.role || 'Admin'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p
-                      className="text-xs font-semibold truncate"
-                      style={{ color: 'var(--color-text-primary)' }}
-                    >
-                      {user?.name || 'Staff Member'}
-                    </p>
-                    <p className="text-[10px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
-                      {user?.role || 'Admin'}
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => {
+                      logout();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="p-1.5 rounded-md hover:bg-rose-500/10 hover:text-rose-500 transition-colors shrink-0"
+                    title="Log Out"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                  >
+                    <LogOut size={16} />
+                  </button>
                 </div>
+              ) : (
                 <button
                   onClick={() => {
-                    logout();
+                    openLoginModal();
                     setIsMobileMenuOpen(false);
                   }}
-                  className="p-1.5 rounded-md hover:bg-rose-500/10 hover:text-rose-500 transition-colors shrink-0"
-                  title="Log Out"
-                  style={{ color: 'var(--color-text-secondary)' }}
+                  className="w-full flex items-center justify-center py-2 bg-[#FFB703] hover:brightness-95 text-gray-900 rounded-lg text-xs font-bold shadow-sm transition-all border border-amber-500/20"
                 >
-                  <LogOut size={16} />
+                  Sign In
                 </button>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -467,7 +498,14 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
                       )}
                     </div>
                     <div className="max-h-80 overflow-y-auto divide-y" style={{ borderColor: 'var(--color-border)' }}>
-                      {alerts.length === 0 ? (
+                      {!user ? (
+                        <div className="p-8 text-center">
+                          <Bell size={20} className="mx-auto text-gray-300 mb-2" />
+                          <p className="text-xs font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
+                            Notifications will appear after login.
+                          </p>
+                        </div>
+                      ) : alerts.length === 0 ? (
                         <div className="p-8 text-center">
                           <Bell size={20} className="mx-auto text-gray-300 mb-2" />
                           <p className="text-xs font-semibold" style={{ color: 'var(--color-text-secondary)' }}>No alerts at this time</p>
@@ -570,6 +608,39 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
             >
               <CalendarDays size={15} />
             </button>
+
+            {/* User Auth Section — authenticated only */}
+            {user && (
+              <>
+                {/* Vertical separator */}
+                <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1 sm:mx-2" />
+
+                <div className="flex items-center gap-2">
+                  <div className="hidden md:block text-right">
+                    <p className="text-xs font-semibold leading-tight text-[var(--color-text-primary)]">
+                      {user.name}
+                    </p>
+                    <p className="text-[10px] leading-tight text-[var(--color-text-secondary)] mt-0.5">
+                      {user.role || 'User'}
+                    </p>
+                  </div>
+                  <div
+                    className="w-8 h-8 rounded-full bg-[#FFB703] flex items-center justify-center text-xs font-bold text-gray-900 border border-amber-500/30 shrink-0 shadow-sm"
+                    title={user.name}
+                  >
+                    {getInitials(user.name)}
+                  </div>
+                  <button
+                    onClick={logout}
+                    className="p-1.5 rounded-md hover:bg-rose-500/10 hover:text-rose-500 transition-colors shrink-0"
+                    title="Log Out"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                  >
+                    <LogOut size={16} />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </header>
 
@@ -614,7 +685,26 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
                 </button>
               </div>
 
-              {loadingSummary ? (
+               {!user ? (
+                <div className="py-8 text-center space-y-4">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center border border-amber-200 text-amber-500">
+                    <CalendarDays size={20} />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-800">Weekly Performance Report</h3>
+                  <p className="text-xs text-gray-600 max-w-xs mx-auto leading-relaxed">
+                    Login to track weekly performance.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setShowWeeklySummary(false);
+                      openLoginModal();
+                    }}
+                    className="px-5 py-2.5 bg-[#FFB703] hover:brightness-95 text-gray-900 rounded-lg text-xs font-bold shadow-sm transition-all border border-amber-500/20"
+                  >
+                    Sign In
+                  </button>
+                </div>
+              ) : loadingSummary ? (
                 <div className="py-12 text-center text-sm flex flex-col items-center justify-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
                   <Clock className="animate-spin text-amber-500" size={24} />
                   <span>Calculating from MongoDB history...</span>

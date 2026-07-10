@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Play, 
   Loader2, 
@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import { analyzeReviewsApi } from '../services/api';
 import { getRiskScore, getPriorityScore, getReviewClusters } from '../services/helpers';
+import { useAuth } from '../context/AuthContext';
 
 export default function ReviewAnalyzer({ reviewsData, setReviewsData, inputText, setInputText }) {
+  const { user, openLoginModal } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [errorDetails, setErrorDetails] = useState(null);
@@ -29,6 +31,10 @@ export default function ReviewAnalyzer({ reviewsData, setReviewsData, inputText,
   };
 
   const handleAnalyze = async () => {
+    if (!user) {
+      openLoginModal();
+      return;
+    }
     const reviews = parseReviews(inputText);
     if (reviews.length === 0) {
       setError('Please enter at least one review to analyze.');

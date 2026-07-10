@@ -13,6 +13,20 @@ const config = {
     model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
   },
 
+  // ── Google OAuth ───────────────────────────────────────
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackUrl: process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000/api/auth/google/callback",
+  },
+
+  // ── GitHub OAuth ───────────────────────────────────────
+  github: {
+    clientId: process.env.GITHUB_CLIENT_ID,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    callbackUrl: process.env.GITHUB_CALLBACK_URL || "http://localhost:3000/api/auth/github/callback",
+  },
+
   // ── Server ───────────────────────────────────────────
   server: {
     port: parseInt(process.env.PORT, 10) || 3000,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Loader2,
   AlertCircle,
@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import { getHistoryApi, deleteSessionApi } from '../services/api';
 import { getRiskScore, getPriorityScore } from '../services/helpers';
+import { useAuth } from '../context/AuthContext';
 
 export default function HistoryPage({ onLoadSession }) {
+  const { user, openLoginModal } = useAuth();
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState(null);
@@ -41,8 +43,12 @@ export default function HistoryPage({ onLoadSession }) {
   };
 
   useEffect(() => {
-    fetchHistory(historyPage);
-  }, [historyPage]);
+    if (user) {
+      fetchHistory(historyPage); // eslint-disable-line react-hooks/set-state-in-effect
+    } else {
+      setHistoryData([]);
+    }
+  }, [historyPage, user]);
 
   const handleDeleteSession = async (requestId) => {
     if (!window.confirm('Are you sure you want to permanently delete this analysis session?')) return;
@@ -76,6 +82,37 @@ export default function HistoryPage({ onLoadSession }) {
     if (score === 'Medium Priority') return 'bg-amber-50 text-amber-700 border-amber-200/50';
     return 'bg-gray-100 text-gray-700 border-gray-200';
   };
+
+  if (!user) {
+    return (
+      <div className="space-y-8 animate-fade-in">
+        {/* Page Header */}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-[#111827] md:text-3xl">Analysis History</h1>
+          <p className="mt-1.5 text-[#374151] max-w-2xl text-sm md:text-base leading-relaxed">
+            Access your saved review analysis sessions.
+          </p>
+        </div>
+
+        {/* History Card with Guest State */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden p-16 text-center">
+          <div className="mx-auto w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center border border-gray-200 mb-3 text-gray-400">
+            <Clock size={20} />
+          </div>
+          <h3 className="text-sm font-bold text-gray-800">No saved analysis yet.</h3>
+          <p className="text-xs text-gray-600 max-w-xs mx-auto mt-1.5 leading-relaxed">
+            Create an account or sign in to securely save and access historical analysis runs.
+          </p>
+          <button
+            onClick={openLoginModal}
+            className="mt-5 px-5 py-2.5 bg-[#FFB703] hover:brightness-95 text-gray-900 rounded-lg text-xs font-bold shadow-sm transition-all border border-amber-500/20 font-semibold"
+          >
+            Sign In
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
