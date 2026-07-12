@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { 
-  Play, 
-  Loader2, 
-  Copy, 
-  Check, 
-  AlertCircle, 
-  Inbox, 
+import {
+  Play,
+  Loader2,
+  Copy,
+  Check,
+  AlertCircle,
+  Inbox,
   Trash2,
   FileSpreadsheet,
   CornerDownRight
@@ -120,7 +120,7 @@ export default function ReviewAnalyzer({ reviewsData, setReviewsData, inputText,
     const rows = reviewsData.map((r) => [
       r.review.replace(/"/g, '""'), r.sentiment, r.theme, getRiskScore(r), getPriorityScore(r), r.response.replace(/"/g, '""')
     ]);
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => `"${e.join('","')}"`)] .join('\n');
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => `"${e.join('","')}"`)].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
@@ -159,7 +159,7 @@ export default function ReviewAnalyzer({ reviewsData, setReviewsData, inputText,
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[#111827] md:text-3xl">Guest Review Analysis</h1>
         <p className="mt-1.5 text-[#374151] max-w-2xl text-sm md:text-base leading-relaxed">
-          Analyze guest reviews using AI-powered sentiment and theme classification.
+
         </p>
       </div>
 
@@ -278,16 +278,14 @@ export default function ReviewAnalyzer({ reviewsData, setReviewsData, inputText,
                   <button
                     key={cluster.theme}
                     onClick={() => setSelectedThemeFilter(isActive ? null : cluster.theme)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded border text-[11px] font-semibold transition-all ${
-                      isActive
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded border text-[11px] font-semibold transition-all ${isActive
                         ? 'bg-amber-400 border-amber-500 text-gray-900 shadow-sm'
                         : cluster.colorClass
-                    }`}
+                      }`}
                   >
                     <span>{cluster.name}</span>
-                    <span className={`px-1.5 rounded-full text-[9px] font-bold ${
-                      isActive ? 'bg-amber-600/20 text-gray-900' : 'bg-white/60 text-gray-700'
-                    }`}>
+                    <span className={`px-1.5 rounded-full text-[9px] font-bold ${isActive ? 'bg-amber-600/20 text-gray-900' : 'bg-white/60 text-gray-700'
+                      }`}>
                       {cluster.count}
                     </span>
                   </button>

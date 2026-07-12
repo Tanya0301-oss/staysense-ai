@@ -1,0 +1,2245 @@
+{
+  "info": {
+    "_postman_id": "staysense-ai-w6-auth-2026",
+    "name": "StaySense AI — W6 Auth API Collection",
+    "description": "Week 6 Authentication deliverable for StaySense AI (v2.0.0).\n\n─────────────────────────────────────────────────────────\nCRITICAL: HOW AUTHENTICATION WORKS IN THIS BACKEND\n─────────────────────────────────────────────────────────\nThe `protect` middleware reads the JWT ONLY from the HTTP-only\ncookie named `token` (req.cookies?.token). It does NOT read\nthe Authorization header. Postman automatically forwards cookies\nreceived in Set-Cookie headers to subsequent requests in the\nsame session — so after running Login the cookie is live and\nall protected requests work without any manual steps.\n\nThe `jwt` environment variable is also captured from Set-Cookie\nfor reference and documentation, but the actual auth mechanism\nis the cookie, not the Bearer header.\n─────────────────────────────────────────────────────────\n\nVERIFIED EXECUTION ORDER:\n  1. Authentication / Register (POST /api/auth/register)\n     → Sets token cookie + saves jwt variable\n  2. Authentication / Login    (POST /api/auth/login)\n     → Sets token cookie + saves jwt variable\n  3. Protected #1 — GET /api/auth/me             (cookie auto-sent)\n  4. Protected #2 — GET /api/history             (cookie auto-sent)\n  5. Protected #3 — GET /api/history/stats/summary\n  6. Protected #4 — POST /api/reviews/analyze    (saves lastRequestId)\n  7. Protected #5 — GET /api/history/:requestId     (uses lastRequestId)\n  8. Protected #6 — POST /api/history/alerts/read\n  9. Protected #7 — GET /api/history/alerts\n  10. Protected #8 — GET /api/history/weekly-summary\n  11. Protected #9 — GET /api/history/trends\n  12. Protected #10 — DELETE /api/history/:requestId\n  13. Authentication / Logout                    (cookie cleared)\n\nAll endpoints verified against:\n  backend/src/routes/authRoutes.js\n  backend/src/routes/reviewRoutes.js\n  backend/src/routes/historyRoutes.js\n  backend/src/controllers/authController.js\n  backend/src/controllers/historyController.js\n  backend/src/controllers/reviewController.js\n  backend/src/middleware/authMiddleware.js\n  backend/src/middleware/validateReview.js\n  backend/src/models/User.js\n  backend/src/app.js",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "description": "Backend API base URL. Change to your deployed URL in production."
+    },
+    {
+      "key": "jwt",
+      "value": "",
+      "description": "Raw JWT string extracted from the Set-Cookie header by the Login test script. For reference only — auth is cookie-based."
+    },
+    {
+      "key": "lastRequestId",
+      "value": "",
+      "description": "requestId from the most recent analyze call. Auto-saved by the Analyze test script."
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "Public and protected auth endpoints. Register and Login both set the `token` HTTP-only cookie which Postman automatically carries into all subsequent requests.",
+      "item": [
+        {
+          "name": "Register — Create New User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ── Status assertion ───────────────────────────────────────────",
+                  "pm.test('Status is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "// ── Body assertions ────────────────────────────────────────────",
+                  "pm.test('success flag is true', function () {",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('user object is present and has correct fields', function () {",
+                  "    const u = pm.response.json().data.user;",
+                  "    pm.expect(u).to.have.property('_id');",
+                  "    pm.expect(u).to.have.property('name');",
+                  "    pm.expect(u).to.have.property('email');",
+                  "    pm.expect(u).to.have.property('role');",
+                  "    pm.expect(u).to.not.have.property('password');",
+                  "});",
+                  "",
+                  "// ── JWT cookie capture ─────────────────────────────────────────",
+                  "// The backend sets an HTTP-only cookie: token=<JWT>; Path=/; HttpOnly; SameSite=Lax",
+                  "// Postman exposes this via pm.response.headers.get('Set-Cookie').",
+                  "// We extract and save the raw token for documentation / env var use.",
+                  "// NOTE: Postman automatically forwards the cookie on subsequent requests",
+                  "// in the same session — no manual header injection needed.",
+                  "const setCookie = pm.response.headers.get('Set-Cookie');",
+                  "if (setCookie) {",
+                  "    const m = setCookie.match(/(?:^|,\\s*)token=([^;,]+)/);",
+                  "    if (m && m[1]) {",
+                  "        pm.environment.set('jwt', m[1]);",
+                  "        pm.collectionVariables.set('jwt', m[1]);",
+                  "        console.log('[Register] JWT captured → jwt variable set. Length:', m[1].length);",
+                  "    }",
+                  "} else {",
+                  "    console.warn('[Register] No Set-Cookie header — is cookieParser() mounted in app.js?');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo User\",\n  \"email\": \"demo@staysense.ai\",\n  \"password\": \"Demo@1234\",\n  \"confirmPassword\": \"Demo@1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Creates a new user account and automatically logs them in.\n\nPassword rules enforced by authController.js:\n  • At least 8 characters\n  • At least one uppercase letter [A-Z]\n  • At least one lowercase letter [a-z]\n  • At least one digit \\d\n  • confirmPassword must match password\n\nOn success:\n  • HTTP 201 with { success, data: { user } }\n  • Set-Cookie: token=<JWT>; Path=/; HttpOnly; SameSite=Lax\n  • User document: { _id, name, email, role, createdAt, updatedAt }\n  • password field is stripped by User.toJSON transform\n\nRate limited: 5 registrations per IP per hour."
+          },
+          "response": [
+            {
+              "name": "201 Created — Registration Success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Demo User\",\n  \"email\": \"demo@staysense.ai\",\n  \"password\": \"Demo@1234\",\n  \"confirmPassword\": \"Demo@1234\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/register"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2N2YxMjM0NTY3ODkwYWJjZGVmMDEyMyIsInJvbGUiOiJVc2VyIiwiaWF0IjoxNzUyMzA4MDAwLCJleHAiOjE3NTI5MTI4MDB9.EXAMPLE_SIGNATURE; Path=/; Expires=Sun, 19 Jul 2026 08:00:00 GMT; HttpOnly; SameSite=Lax"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"_id\": \"667f1234567890abcdef0123\",\n      \"name\": \"Demo User\",\n      \"email\": \"demo@staysense.ai\",\n      \"role\": \"User\",\n      \"createdAt\": \"2026-07-12T08:00:00.000Z\",\n      \"updatedAt\": \"2026-07-12T08:00:00.000Z\"\n    }\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — Password Mismatch",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Demo User\",\n  \"email\": \"demo@staysense.ai\",\n  \"password\": \"Demo@1234\",\n  \"confirmPassword\": \"WrongPass\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/register"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"PASSWORD_MISMATCH\",\n    \"message\": \"Passwords do not match.\"\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — Weak Password (no uppercase)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Demo User\",\n  \"email\": \"demo@staysense.ai\",\n  \"password\": \"demo1234\",\n  \"confirmPassword\": \"demo1234\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/register"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"WEAK_PASSWORD\",\n    \"message\": \"Password must contain at least one uppercase letter.\"\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — Missing Required Fields",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"demo@staysense.ai\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/register"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"MISSING_FIELDS\",\n    \"message\": \"Name, email, and password are required.\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login — Authenticate & Auto-Set Cookie",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ── Status assertion ────────────────────────────────────────────",
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// ── Body assertions ─────────────────────────────────────────────",
+                  "pm.test('success flag is true', function () {",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('user object is present and has correct fields', function () {",
+                  "    const u = pm.response.json().data.user;",
+                  "    pm.expect(u).to.have.property('_id');",
+                  "    pm.expect(u).to.have.property('name');",
+                  "    pm.expect(u).to.have.property('email');",
+                  "    pm.expect(u).to.have.property('role');",
+                  "});",
+                  "",
+                  "pm.test('password is never exposed in response body', function () {",
+                  "    pm.expect(pm.response.json().data.user).to.not.have.property('password');",
+                  "});",
+                  "",
+                  "pm.test('JWT token is NOT in response body (cookie-only backend)', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.not.have.property('token');",
+                  "    pm.expect(body.data).to.not.have.property('token');",
+                  "});",
+                  "",
+                  "// ── JWT cookie capture ──────────────────────────────────────────",
+                  "// Cookie set by backend: res.cookie('token', token, getCookieOptions())",
+                  "// Express cookie format in dev (NODE_ENV=development):",
+                  "//   Set-Cookie: token=<JWT>; Path=/; Expires=<date>; HttpOnly; SameSite=Lax",
+                  "// Note: 'Secure' is omitted in development (config.cookie.secure = false)",
+                  "//",
+                  "// Postman automatically forwards this cookie on all subsequent requests",
+                  "// to the same domain — no manual Authorization header injection required.",
+                  "// We capture the raw value only for the env variable and logging.",
+                  "const setCookie = pm.response.headers.get('Set-Cookie');",
+                  "",
+                  "pm.test('Set-Cookie header is present with token', function () {",
+                  "    pm.expect(setCookie).to.be.a('string');",
+                  "    pm.expect(setCookie).to.include('token=');",
+                  "    pm.expect(setCookie).to.include('HttpOnly');",
+                  "});",
+                  "",
+                  "if (setCookie) {",
+                  "    // Regex matches: token=<value> up to the next ; or end-of-string",
+                  "    const m = setCookie.match(/(?:^|,\\s*)token=([^;,]+)/);",
+                  "    if (m && m[1]) {",
+                  "        pm.environment.set('jwt', m[1]);",
+                  "        pm.collectionVariables.set('jwt', m[1]);",
+                  "        console.log('[Login] JWT captured from Set-Cookie. Length:', m[1].length);",
+                  "        console.log('[Login] First 50 chars:', m[1].substring(0, 50) + '...');",
+                  "    } else {",
+                  "        console.error('[Login] FAIL: token= not found in Set-Cookie header:', setCookie);",
+                  "    }",
+                  "} else {",
+                  "    console.error('[Login] FAIL: No Set-Cookie header in response.');",
+                  "}",
+                  "",
+                  "pm.test('jwt environment variable is populated', function () {",
+                  "    const jwt = pm.environment.get('jwt') || pm.collectionVariables.get('jwt');",
+                  "    pm.expect(jwt).to.be.a('string').with.length.above(20);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo@staysense.ai\",\n  \"password\": \"Demo@1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticates the user and issues a session via HTTP-only cookie.\n\nBackend logic (authController.js → loginUser service):\n  1. Validates email + password presence\n  2. Looks up user by email\n  3. Compares password with bcrypt hash\n  4. Signs JWT: { id, role } with config.jwt.secret\n  5. Sets cookie: token=<JWT>; Path=/; HttpOnly; SameSite=Lax\n  6. Returns: { success: true, data: { user } }\n     (JWT is NEVER returned in the response body)\n\nIMPORTANT:\n  The protect middleware (authMiddleware.js) reads ONLY from:\n    req.cookies?.token\n  It does NOT read the Authorization: Bearer header.\n  Postman carries the cookie automatically after Login — all\n  protected requests will authenticate without any extra steps.\n\nRate limited: 10 failed attempts per 15 minutes (skipSuccessfulRequests=true)."
+          },
+          "response": [
+            {
+              "name": "200 OK — Login Success (JWT in Set-Cookie only)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"demo@staysense.ai\",\n  \"password\": \"Demo@1234\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2N2YxMjM0NTY3ODkwYWJjZGVmMDEyMyIsInJvbGUiOiJVc2VyIiwiaWF0IjoxNzUyMzA4MDAwLCJleHAiOjE3NTI5MTI4MDB9.EXAMPLE_SIGNATURE; Path=/; Expires=Sun, 19 Jul 2026 08:00:00 GMT; HttpOnly; SameSite=Lax"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"_id\": \"667f1234567890abcdef0123\",\n      \"name\": \"Demo User\",\n      \"email\": \"demo@staysense.ai\",\n      \"role\": \"User\",\n      \"createdAt\": \"2026-07-12T08:00:00.000Z\",\n      \"updatedAt\": \"2026-07-12T08:00:00.000Z\"\n    }\n  }\n}"
+            },
+            {
+              "name": "401 Unauthorized — Invalid Credentials",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"demo@staysense.ai\",\n  \"password\": \"WrongPassword\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INVALID_CREDENTIALS\",\n    \"message\": \"Invalid email or password.\"\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — Missing Credentials",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"demo@staysense.ai\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"MISSING_CREDENTIALS\",\n    \"message\": \"Email and password are required.\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logout — Clear Cookie & Terminate Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('success flag is true', function () {",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});",
+                  "pm.test('Logout success message is present', function () {",
+                  "    pm.expect(pm.response.json().message).to.include('Logged out');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Clears the `token` HTTP-only cookie and terminates the session.\n\nProtected route: requires the `token` cookie set by Login.\nPostman sends the cookie automatically.\n\nController (authController.js → logout):\n  res.clearCookie('token', { httpOnly, secure, sameSite, path: '/' })\n  Response: { success: true, message: 'Logged out successfully.' }"
+          },
+          "response": [
+            {
+              "name": "200 OK — Logged Out",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/logout"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Logged out successfully.\"\n}"
+            },
+            {
+              "name": "401 Unauthorized — No Active Session",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/logout"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_AUTHENTICATED\",\n    \"message\": \"You are not logged in. Please log in to access this resource.\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Protected — Auth Required (cookie-based)",
+      "description": "All endpoints here use `router.use(protect)` or per-route `protect` middleware.\n\nThe `protect` middleware (authMiddleware.js) reads ONLY from req.cookies?.token.\nPostman automatically forwards the cookie set during Login — no manual steps needed.\n\nPrerequisite: Run Authentication / Login first.",
+      "item": [
+        {
+          "name": "Protected #1 — GET Current User Profile (/api/auth/me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('success flag is true', function () {",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});",
+                  "pm.test('user profile is present with required fields', function () {",
+                  "    const u = pm.response.json().data.user;",
+                  "    pm.expect(u).to.have.property('_id');",
+                  "    pm.expect(u).to.have.property('name');",
+                  "    pm.expect(u).to.have.property('email');",
+                  "    pm.expect(u).to.have.property('role');",
+                  "});",
+                  "pm.test('password is never exposed', function () {",
+                  "    pm.expect(pm.response.json().data.user).to.not.have.property('password');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Returns the currently authenticated user's profile.\n\nRoute: GET /api/auth/me  (authRoutes.js line 40)\nMiddleware chain: protect → me\n\nprotect reads req.cookies?.token, verifies JWT, attaches user to req.user.\nme calls getMe(req.user._id) and returns the user document.\n\nUser.toJSON transform automatically strips the password field."
+          },
+          "response": [
+            {
+              "name": "200 OK — User Profile",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/me"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"_id\": \"667f1234567890abcdef0123\",\n      \"name\": \"Demo User\",\n      \"email\": \"demo@staysense.ai\",\n      \"role\": \"User\",\n      \"createdAt\": \"2026-07-12T08:00:00.000Z\",\n      \"updatedAt\": \"2026-07-12T08:00:00.000Z\"\n    }\n  }\n}"
+            },
+            {
+              "name": "401 Unauthorized — No Cookie",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/me"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_AUTHENTICATED\",\n    \"message\": \"You are not logged in. Please log in to access this resource.\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Protected #2 — GET History — All Sessions (/api/history)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('success flag is true', function () {",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});",
+                  "pm.test('sessions is an array', function () {",
+                  "    pm.expect(pm.response.json().sessions).to.be.an('array');",
+                  "});",
+                  "pm.test('pagination fields present', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('total');",
+                  "    pm.expect(body).to.have.property('page');",
+                  "    pm.expect(body).to.have.property('totalPages');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/history?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (min 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Results per page (max 100, default 20)"
+                }
+              ]
+            },
+            "description": "Lists all past analysis sessions for the authenticated user, paginated.\n\nRoute: GET /api/history  (historyRoutes.js)\nMiddleware: router.use(protect) — all /api/history routes are protected\n\nController: getSessions(req, res, next)\n  → listSessions(page, limit, req.user._id)\n  → Response: { success, sessions[], total, page, totalPages }\n\nData is strictly scoped to req.user._id — cross-user access is impossible."
+          },
+          "response": [
+            {
+              "name": "200 OK — Sessions List",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/history?page=1&limit=10"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"sessions\": [\n    {\n      \"_id\": \"603d2e1b9f1b2c3d4e5f6789\",\n      \"requestId\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"reviewCount\": 3,\n      \"successCount\": 3,\n      \"failedCount\": 0,\n      \"createdAt\": \"2026-07-12T08:00:00.000Z\"\n    }\n  ],\n  \"total\": 1,\n  \"page\": 1,\n  \"totalPages\": 1\n}"
+            },
+            {
+              "name": "401 Unauthorized — No Cookie",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/history"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_AUTHENTICATED\",\n    \"message\": \"You are not logged in. Please log in to access this resource.\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Protected #3 — GET Stats Summary (/api/history/stats/summary)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('data contains totalReviews, sentimentCounts, themeCounts', function () {",
+                  "    const d = pm.response.json().data;",
+                  "    pm.expect(d).to.have.property('totalReviews');",
+                  "    pm.expect(d).to.have.property('sentimentCounts');",
+                  "    pm.expect(d).to.have.property('themeCounts');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/history/stats/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "history",
+                "stats",
+                "summary"
+              ]
+            },
+            "description": "Aggregates sentiment and theme metrics scoped to the authenticated user.\n\nRoute: GET /api/history/stats/summary  (historyRoutes.js)\nOrdered BEFORE /:requestId in the router to avoid 'stats' being parsed as a requestId.\nMiddleware: router.use(protect)\n\nController: getStatsSummary → getStats(req.user._id)"
+          },
+          "response": [
+            {
+              "name": "200 OK — Aggregated Stats",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/history/stats/summary"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"totalReviews\": 150,\n    \"sentimentCounts\": {\n      \"Positive\": 100,\n      \"Neutral\": 30,\n      \"Negative\": 20\n    },\n    \"themeCounts\": {\n      \"Cleanliness\": 45,\n      \"Host\": 55,\n      \"Food\": 15,\n      \"Location\": 15,\n      \"Value\": 10,\n      \"Experience\": 10\n    }\n  }\n}"
+            },
+            {
+              "name": "401 Unauthorized — No Cookie",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/history/stats/summary"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_AUTHENTICATED\",\n    \"message\": \"You are not logged in. Please log in to access this resource.\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Protected #4 — POST Analyze Reviews (/api/reviews/analyze)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('success flag is true', function () {",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});",
+                  "pm.test('requestId is a non-empty string (UUID)', function () {",
+                  "    const id = pm.response.json().requestId;",
+                  "    pm.expect(id).to.be.a('string').with.length.above(0);",
+                  "});",
+                  "pm.test('count matches data array length', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.count).to.equal(body.data.length);",
+                  "});",
+                  "pm.test('each result has review, sentiment, theme, response', function () {",
+                  "    pm.response.json().data.forEach(function(item) {",
+                  "        pm.expect(item).to.have.property('review');",
+                  "        pm.expect(item).to.have.property('sentiment');",
+                  "        pm.expect(item).to.have.property('theme');",
+                  "        pm.expect(item).to.have.property('response');",
+                  "    });",
+                  "});",
+                  "// Save requestId for downstream session-lookup test",
+                  "const rid = pm.response.json().requestId;",
+                  "if (rid) {",
+                  "    pm.environment.set('lastRequestId', rid);",
+                  "    pm.collectionVariables.set('lastRequestId', rid);",
+                  "    console.log('[Analyze] lastRequestId saved:', rid);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviews\": [\n    \"The host was incredibly welcoming and the room was spotless.\",\n    \"Breakfast options were disappointing and very limited.\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/analyze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "analyze"
+              ]
+            },
+            "description": "Submits reviews for AI classification. Saves the session scoped to req.user._id.\n\nRoute: POST /api/reviews/analyze  (reviewRoutes.js)\nMiddleware chain: protect → validateReviewInput → analyzeReviews\n\nvalidateReviewInput (validateReview.js) accepts:\n  • { review: 'single string' }          — single review\n  • { reviews: ['r1', 'r2'] }            — array batch\n  • { reviews: 'r1\\nr2\\nr3' }           — newline-separated batch\n  Each review must be ≥ 5 characters. Max 50 per request (config.batch.maxReviews).\n\nResponse: { success, requestId (UUID v4), count, data[] }\nEach data item: { review, sentiment, theme, response, error }"
+          },
+          "response": [
+            {
+              "name": "200 OK — Batch Analysis Result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reviews\": [\n    \"The host was incredibly welcoming and the room was spotless.\",\n    \"Breakfast options were disappointing and very limited.\"\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reviews/analyze"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"requestId\": \"f6a7b8c9-d0e1-2345-fabc-456789012345\",\n  \"count\": 2,\n  \"data\": [\n    {\n      \"review\": \"The host was incredibly welcoming and the room was spotless.\",\n      \"sentiment\": \"Positive\",\n      \"theme\": \"Host\",\n      \"response\": \"Thank you for your wonderful feedback — we're so glad our host made your stay special!\",\n      \"error\": null\n    },\n    {\n      \"review\": \"Breakfast options were disappointing and very limited.\",\n      \"sentiment\": \"Negative\",\n      \"theme\": \"Food\",\n      \"response\": \"We apologize for the breakfast experience. Your feedback has been shared with our catering team.\",\n      \"error\": null\n    }\n  ]\n}"
+            },
+            {
+              "name": "401 Unauthorized — No Cookie",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reviews\": [\"test review text here\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reviews/analyze"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_AUTHENTICATED\",\n    \"message\": \"You are not logged in. Please log in to access this resource.\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Protected #5 — GET Session by ID (/api/history/:requestId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('success flag is true', function () {",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});",
+                  "pm.test('data object is present', function () {",
+                  "    pm.expect(pm.response.json()).to.have.property('data');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/history/{{lastRequestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "history",
+                "{{lastRequestId}}"
+              ]
+            },
+            "description": "Retrieves a single analysis session with all its nested review documents.\n\nRoute: GET /api/history/:requestId  (historyRoutes.js)\nMiddleware: router.use(protect)\n\nController: getSession → getSessionByRequestId(requestId, req.user._id)\nCross-user access returns 404 (not 401) to prevent enumeration.\n\n{{lastRequestId}} is automatically populated by the Protected #4 Analyze test script."
+          },
+          "response": [
+            {
+              "name": "200 OK — Session Detail",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/history/{{lastRequestId}}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"_id\": \"603d2e1b9f1b2c3d4e5f6789\",\n    \"requestId\": \"f6a7b8c9-d0e1-2345-fabc-456789012345\",\n    \"reviewCount\": 2,\n    \"successCount\": 2,\n    \"failedCount\": 0,\n    \"reviews\": [\n      {\n        \"review\": \"The host was incredibly welcoming and the room was spotless.\",\n        \"sentiment\": \"Positive\",\n        \"theme\": \"Host\",\n        \"response\": \"Thank you for your wonderful feedback!\"\n      },\n      {\n        \"review\": \"Breakfast options were disappointing and very limited.\",\n        \"sentiment\": \"Negative\",\n        \"theme\": \"Food\",\n        \"response\": \"We apologize for the breakfast experience.\"\n      }\n    ],\n    \"createdAt\": \"2026-07-12T08:00:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "404 Not Found — Wrong requestId or Different User",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/history/nonexistent-request-id"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"SESSION_NOT_FOUND\",\n    \"message\": \"Session not found: nonexistent-request-id\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Protected #6 — POST Mark Alerts Read (/api/history/alerts/read)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('success flag is true', function () {",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});",
+                  "pm.test('message confirms mark-as-read count', function () {",
+                  "    pm.expect(pm.response.json().message).to.include('alert(s) as read');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alertIds\": [\n    \"alert_hygiene_concerns_2026-07-12\",\n    \"alert_host_complaints_2026-07-12\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/history/alerts/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "history",
+                "alerts",
+                "read"
+              ]
+            },
+            "description": "Marks one or more alerts as read for the authenticated user.\n\nRoute: POST /api/history/alerts/read  (historyRoutes.js)\nMiddleware: router.use(protect)\n\nController validation (historyController.js):\n  if (!Array.isArray(alertIds)) → 400 INVALID_INPUT\n\nBody schema: { alertIds: string[] }  — must be a non-empty array\n\nResponse: { success: true, message: 'Marked N alert(s) as read' }"
+          },
+          "response": [
+            {
+              "name": "200 OK — Alerts Marked as Read",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"alertIds\": [\"alert_hygiene_concerns_2026-07-12\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/history/alerts/read"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Marked 2 alert(s) as read\"\n}"
+            },
+            {
+              "name": "400 Bad Request — alertIds must be array",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"alertIds\": \"alert_hygiene_concerns_2026-07-12\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/history/alerts/read"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INVALID_INPUT\",\n    \"message\": \"alertIds must be an array\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Protected #7 — GET Alerts (/api/history/alerts)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('success flag is true', function () {",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});",
+                  "pm.test('data is an array', function () {",
+                  "    pm.expect(pm.response.json().data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/history/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "history",
+                "alerts"
+              ]
+            },
+            "description": "Retrieves dynamic, data-driven alerts from the authenticated user's historical reviews.\n\nRoute: GET /api/history/alerts\nMiddleware: protect\nController: getAlerts"
+          },
+          "response": [
+            {
+              "name": "200 OK — Alerts List",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/history/alerts"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"_id\": \"alert_hygiene_concerns_2026-07-12\",\n      \"type\": \"Hygiene\",\n      \"message\": \"Frequent mention of cleanliness issues in the last 7 days.\",\n      \"read\": false,\n      \"createdAt\": \"2026-07-12T08:00:00.000Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Protected #8 — GET Weekly Summary (/api/history/weekly-summary)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('success flag is true', function () {",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});",
+                  "pm.test('data contains summary metrics', function () {",
+                  "    const d = pm.response.json().data;",
+                  "    pm.expect(d).to.have.property('reviewCount');",
+                  "    pm.expect(d).to.have.property('averageSentiment');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/history/weekly-summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "history",
+                "weekly-summary"
+              ]
+            },
+            "description": "Retrieves weekly management summary statistics for the authenticated user.\n\nRoute: GET /api/history/weekly-summary\nMiddleware: protect\nController: getWeeklySummary"
+          },
+          "response": [
+            {
+              "name": "200 OK — Weekly Summary",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/history/weekly-summary"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"reviewCount\": 25,\n    \"successCount\": 25,\n    \"failedCount\": 0,\n    \"averageSentiment\": 4.2,\n    \"sentimentDistribution\": {\n      \"Positive\": 18,\n      \"Neutral\": 5,\n      \"Negative\": 2\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Protected #9 — GET Trends (/api/history/trends)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('success flag is true', function () {",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});",
+                  "pm.test('data is an array', function () {",
+                  "    pm.expect(pm.response.json().data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/history/trends",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "history",
+                "trends"
+              ]
+            },
+            "description": "Retrieves daily historical trend data for the authenticated user's sessions.\n\nRoute: GET /api/history/trends\nMiddleware: protect\nController: getTrends"
+          },
+          "response": [
+            {
+              "name": "200 OK — Trends List",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/history/trends"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"date\": \"2026-07-12\",\n      \"reviewCount\": 5,\n      \"positiveCount\": 4,\n      \"neutralCount\": 1,\n      \"negativeCount\": 0\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Protected #10 — DELETE Session (/api/history/:requestId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('success flag is true', function () {",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});",
+                  "pm.test('message confirms deletion', function () {",
+                  "    pm.expect(pm.response.json().message).to.include('deleted successfully');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/history/{{lastRequestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "history",
+                "{{lastRequestId}}"
+              ]
+            },
+            "description": "Deletes an analysis session and all of its associated reviews.\n\nRoute: DELETE /api/history/:requestId\nMiddleware: protect\nController: removeSession\n\nCross-user access returns 404 (not 401) to prevent enumeration.\n{{lastRequestId}} is automatically populated by the Protected #4 Analyze test script."
+          },
+          "response": [
+            {
+              "name": "200 OK — Session Deleted",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/history/{{lastRequestId}}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Session deleted successfully\",\n  \"deletedSessionId\": \"603d2e1b9f1b2c3d4e5f6789\",\n  \"deletedReviewsCount\": 2\n}"
+            },
+            {
+              "name": "404 Not Found — Session Not Found or Different User",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/history/nonexistent-request-id"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"SESSION_NOT_FOUND\",\n    \"message\": \"Session not found: nonexistent-request-id\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Health & Info",
+      "item": [
+        {
+          "name": "Root — Service Info (GET /)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('service name is StaySense AI', function () {",
+                  "    pm.expect(pm.response.json().service).to.equal('StaySense AI');",
+                  "});",
+                  "pm.test('version is 2.0.0', function () {",
+                  "    pm.expect(pm.response.json().version).to.equal('2.0.0');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Service Info",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"service\": \"StaySense AI\",\n  \"version\": \"2.0.0\",\n  \"endpoints\": {\n    \"login\": \"POST   /api/auth/login\",\n    \"logout\": \"POST   /api/auth/logout\",\n    \"me\": \"GET    /api/auth/me\",\n    \"analyze\": \"POST   /api/reviews/analyze\",\n    \"health\": \"GET    /api/reviews/health\",\n    \"history\": \"GET    /api/history\",\n    \"session\": \"GET    /api/history/:requestId\",\n    \"stats\": \"GET    /api/history/stats/summary\",\n    \"deleteSession\": \"DELETE /api/history/:requestId\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Health Check (GET /api/reviews/health)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('status field is healthy', function () {",
+                  "    pm.expect(pm.response.json().status).to.equal('healthy');",
+                  "});",
+                  "pm.test('timestamp is present', function () {",
+                  "    pm.expect(pm.response.json()).to.have.property('timestamp');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "health"
+              ]
+            },
+            "description": "Public endpoint — no auth required.\nRoute: GET /api/reviews/health  (reviewRoutes.js)\nController: healthCheck returns { success, status: 'healthy', timestamp: new Date().toISOString() }"
+          },
+          "response": [
+            {
+              "name": "200 OK — Healthy",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reviews/health"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"status\": \"healthy\",\n  \"timestamp\": \"2026-07-12T08:00:00.000Z\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Single Review Analysis",
+      "description": "All /api/reviews/analyze requests require the token cookie set by Login.",
+      "item": [
+        {
+          "name": "Analyze — Positive Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review\": \"The host was extremely friendly and helpful. Made us feel right at home.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/analyze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "analyze"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Positive Sentiment",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"review\": \"The host was extremely friendly and helpful. Made us feel right at home.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reviews/analyze"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"requestId\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n  \"count\": 1,\n  \"data\": [\n    {\n      \"review\": \"The host was extremely friendly and helpful. Made us feel right at home.\",\n      \"sentiment\": \"Positive\",\n      \"theme\": \"Host\",\n      \"response\": \"Thank you for your kind words about our host — we look forward to welcoming you again.\",\n      \"error\": null\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Analyze — Negative Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review\": \"The room was dirty and the bathroom had mold. Very disappointing.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/analyze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "analyze"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Negative Sentiment",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"review\": \"The room was dirty and the bathroom had mold. Very disappointing.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reviews/analyze"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"requestId\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n  \"count\": 1,\n  \"data\": [\n    {\n      \"review\": \"The room was dirty and the bathroom had mold. Very disappointing.\",\n      \"sentiment\": \"Negative\",\n      \"theme\": \"Cleanliness\",\n      \"response\": \"We sincerely apologize for the cleanliness issues and have addressed this with our housekeeping team.\",\n      \"error\": null\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Analyze — Neutral Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review\": \"The location was okay, about a 20 minute walk from the center. Nothing special but not bad.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/analyze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "analyze"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Neutral Sentiment",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"review\": \"The location was okay, about a 20 minute walk from the center. Nothing special but not bad.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reviews/analyze"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"requestId\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n  \"count\": 1,\n  \"data\": [\n    {\n      \"review\": \"The location was okay, about a 20 minute walk from the center. Nothing special but not bad.\",\n      \"sentiment\": \"Neutral\",\n      \"theme\": \"Location\",\n      \"response\": \"Thank you for your feedback — we are exploring transportation options to improve convenience for our guests.\",\n      \"error\": null\n    }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Batch Review Analysis",
+      "item": [
+        {
+          "name": "Batch — Array Format",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviews\": [\n    \"The host was extremely friendly and helpful.\",\n    \"Food was bland and breakfast options were very limited.\",\n    \"Great value for money, would definitely come back!\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/analyze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "analyze"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Batch Array Result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reviews\": [\n    \"The host was extremely friendly and helpful.\",\n    \"Food was bland and breakfast options were very limited.\",\n    \"Great value for money, would definitely come back!\"\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reviews/analyze"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"requestId\": \"d4e5f6a7-b8c9-0123-defa-234567890123\",\n  \"count\": 3,\n  \"data\": [\n    {\"review\": \"The host was extremely friendly and helpful.\", \"sentiment\": \"Positive\", \"theme\": \"Host\", \"response\": \"Thank you for your kind words about our host!\", \"error\": null},\n    {\"review\": \"Food was bland and breakfast options were very limited.\", \"sentiment\": \"Negative\", \"theme\": \"Food\", \"response\": \"We apologize for the dining experience and are reviewing our menu.\", \"error\": null},\n    {\"review\": \"Great value for money, would definitely come back!\", \"sentiment\": \"Positive\", \"theme\": \"Value\", \"response\": \"We're thrilled you found great value in your stay!\", \"error\": null}\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Batch — Newline-Separated String",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviews\": \"The host was extremely friendly and helpful.\\nFood was bland and breakfast options were limited.\\nGreat location, right next to the beach!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/analyze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "analyze"
+              ]
+            },
+            "description": "Newline-separated batch. validateReviewInput splits on /\\r?\\n/ and filters empty lines."
+          },
+          "response": [
+            {
+              "name": "200 OK — Batch String Result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reviews\": \"The host was extremely friendly and helpful.\\nFood was bland.\\nGreat location!\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reviews/analyze"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"requestId\": \"e5f6a7b8-c9d0-1234-efab-345678901234\",\n  \"count\": 3,\n  \"data\": [\n    {\"review\": \"The host was extremely friendly and helpful.\", \"sentiment\": \"Positive\", \"theme\": \"Host\", \"response\": \"Thank you for your kind words!\", \"error\": null},\n    {\"review\": \"Food was bland and breakfast options were limited.\", \"sentiment\": \"Negative\", \"theme\": \"Food\", \"response\": \"We apologize for the dining experience.\", \"error\": null},\n    {\"review\": \"Great location, right next to the beach!\", \"sentiment\": \"Positive\", \"theme\": \"Location\", \"response\": \"We're glad you enjoyed our prime location!\", \"error\": null}\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validation & Error Cases",
+      "description": "Verifies that the validator and error handler return the correct codes and messages.",
+      "item": [
+        {
+          "name": "Error — Empty Body (INVALID_INPUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('error code is INVALID_INPUT', function () {",
+                  "    pm.expect(pm.response.json().error.code).to.equal('INVALID_INPUT');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/analyze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "analyze"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "400 Bad Request — INVALID_INPUT",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reviews/analyze"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INVALID_INPUT\",\n    \"message\": \"Request body must contain \\\"review\\\" (string) or \\\"reviews\\\" (string | string[])\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Error — Review Too Short (REVIEW_TOO_SHORT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('error code is REVIEW_TOO_SHORT', function () {",
+                  "    pm.expect(pm.response.json().error.code).to.equal('REVIEW_TOO_SHORT');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review\": \"Ok\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/analyze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "analyze"
+              ]
+            },
+            "description": "MIN_REVIEW_LENGTH = 5 in validateReview.js. 'Ok' has 2 chars → REVIEW_TOO_SHORT."
+          },
+          "response": [
+            {
+              "name": "400 Bad Request — REVIEW_TOO_SHORT",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"review\": \"Ok\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reviews/analyze"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"REVIEW_TOO_SHORT\",\n    \"message\": \"1 review(s) are too short (minimum 5 characters). First offending review: \\\"Ok\\\"\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Error — Empty Reviews String (EMPTY_INPUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('error code is EMPTY_INPUT', function () {",
+                  "    pm.expect(pm.response.json().error.code).to.equal('EMPTY_INPUT');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviews\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/analyze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "analyze"
+              ]
+            },
+            "description": "Empty string → split produces empty array → EMPTY_INPUT."
+          },
+          "response": [
+            {
+              "name": "400 Bad Request — EMPTY_INPUT",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reviews\": \"\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/reviews/analyze"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"EMPTY_INPUT\",\n    \"message\": \"No reviews provided\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Error — 401 Unauthenticated (no cookie, protected route)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('error code is NOT_AUTHENTICATED', function () {",
+                  "    pm.expect(pm.response.json().error.code).to.equal('NOT_AUTHENTICATED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "",
+                "description": "Intentionally cleared — testing unauthenticated access",
+                "disabled": false
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}",
+                "description": "JWT Bearer Token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "history"
+              ]
+            },
+            "description": "Demonstrates that /api/history returns 401 when the token cookie is absent.\n\nTo run this test without interference from a live session cookie:\nGo to Postman → Settings → Enable 'Automatically follow redirects' and clear cookies for localhost:3000 before running."
+          },
+          "response": [
+            {
+              "name": "401 Unauthorized — NOT_AUTHENTICATED",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/history"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_AUTHENTICATED\",\n    \"message\": \"You are not logged in. Please log in to access this resource.\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Error — 404 Route Not Found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', function () { pm.response.to.have.status(404); });",
+                  "pm.test('error code is NOT_FOUND', function () {",
+                  "    pm.expect(pm.response.json().error.code).to.equal('NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/nonexistent",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "nonexistent"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "404 Not Found — Route Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/nonexistent"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"Route not found\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -160,11 +160,10 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
       <button
         key={item.id}
         onClick={onClick}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-all ${
-          isActive
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-all ${isActive
             ? 'shadow-sm font-semibold'
             : 'hover:bg-[var(--color-nav-hover-bg)]'
-        }`}
+          }`}
         style={
           isActive
             ? { background: '#FBBF24', color: '#111827' }
@@ -521,15 +520,14 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
                           return (
                             <div
                               key={alert.id}
-                              className={`p-3.5 border-l-[3px] flex justify-between gap-3 ${
-                                isRead
+                              className={`p-3.5 border-l-[3px] flex justify-between gap-3 ${isRead
                                   ? 'border-l-gray-200 opacity-70'
                                   : alert.severity === 'High'
                                     ? 'border-l-rose-500'
                                     : alert.severity === 'Medium'
                                       ? 'border-l-[#FFB703]'
                                       : 'border-l-blue-500'
-                              }`}
+                                }`}
                               style={{ background: 'var(--color-card)' }}
                             >
                               <div className="min-w-0 flex-1">
@@ -609,38 +607,6 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
               <CalendarDays size={15} />
             </button>
 
-            {/* User Auth Section — authenticated only */}
-            {user && (
-              <>
-                {/* Vertical separator */}
-                <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1 sm:mx-2" />
-
-                <div className="flex items-center gap-2">
-                  <div className="hidden md:block text-right">
-                    <p className="text-xs font-semibold leading-tight text-[var(--color-text-primary)]">
-                      {user.name}
-                    </p>
-                    <p className="text-[10px] leading-tight text-[var(--color-text-secondary)] mt-0.5">
-                      {user.role || 'User'}
-                    </p>
-                  </div>
-                  <div
-                    className="w-8 h-8 rounded-full bg-[#FFB703] flex items-center justify-center text-xs font-bold text-gray-900 border border-amber-500/30 shrink-0 shadow-sm"
-                    title={user.name}
-                  >
-                    {getInitials(user.name)}
-                  </div>
-                  <button
-                    onClick={logout}
-                    className="p-1.5 rounded-md hover:bg-rose-500/10 hover:text-rose-500 transition-colors shrink-0"
-                    title="Log Out"
-                    style={{ color: 'var(--color-text-secondary)' }}
-                  >
-                    <LogOut size={16} />
-                  </button>
-                </div>
-              </>
-            )}
           </div>
         </header>
 
@@ -685,7 +651,7 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
                 </button>
               </div>
 
-               {!user ? (
+              {!user ? (
                 <div className="py-8 text-center space-y-4">
                   <div className="mx-auto w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center border border-amber-200 text-amber-500">
                     <CalendarDays size={20} />
@@ -716,20 +682,18 @@ export default function DashboardLayout({ children, currentPage, setCurrentPage 
               ) : weeklySummary ? (
                 <div className="space-y-4">
                   {/* Overall Health Score Banner */}
-                  <div className={`p-4 rounded-xl border-2 flex items-center justify-between ${
-                    weeklySummary.overallHealth === 'Excellent' ? 'bg-emerald-50 border-emerald-300' :
-                    weeklySummary.overallHealth === 'Good' ? 'bg-amber-50 border-[#FFB703]' :
-                    weeklySummary.overallHealth === 'Average' ? 'bg-orange-50 border-orange-300' :
-                    'bg-rose-50 border-rose-300'
-                  }`}>
+                  <div className={`p-4 rounded-xl border-2 flex items-center justify-between ${weeklySummary.overallHealth === 'Excellent' ? 'bg-emerald-50 border-emerald-300' :
+                      weeklySummary.overallHealth === 'Good' ? 'bg-amber-50 border-[#FFB703]' :
+                        weeklySummary.overallHealth === 'Average' ? 'bg-orange-50 border-orange-300' :
+                          'bg-rose-50 border-rose-300'
+                    }`}>
                     <div>
                       <span className="text-[10px] font-bold uppercase tracking-wider block text-gray-700 mb-0.5">Overall Health Score</span>
-                      <span className={`text-xl font-black ${
-                        weeklySummary.overallHealth === 'Excellent' ? 'text-emerald-700' :
-                        weeklySummary.overallHealth === 'Good' ? 'text-amber-700' :
-                        weeklySummary.overallHealth === 'Average' ? 'text-orange-700' :
-                        'text-rose-700'
-                      }`}>{weeklySummary.overallHealth}</span>
+                      <span className={`text-xl font-black ${weeklySummary.overallHealth === 'Excellent' ? 'text-emerald-700' :
+                          weeklySummary.overallHealth === 'Good' ? 'text-amber-700' :
+                            weeklySummary.overallHealth === 'Average' ? 'text-orange-700' :
+                              'text-rose-700'
+                        }`}>{weeklySummary.overallHealth}</span>
                     </div>
                     <div className="text-right">
                       <div className="text-3xl font-black text-[#111827]">{weeklySummary.positivePct}<span className="text-base font-bold text-gray-600">%</span></div>

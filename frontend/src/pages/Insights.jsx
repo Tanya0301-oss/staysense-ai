@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { 
+import {
   Inbox,
   Sparkles,
   Loader2,
@@ -9,13 +9,13 @@ import {
   Calendar,
   Minus
 } from 'lucide-react';
-import { 
+import {
   LineChart,
   Line,
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   Legend
 } from 'recharts';
@@ -86,7 +86,7 @@ export default function Insights({ reviewsData }) {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[#111827] md:text-3xl">Insights</h1>
         <p className="mt-1.5 text-[#374151] max-w-2xl text-sm md:text-base leading-relaxed">
-          Aggregated analytics and AI-generated insights from your homestay reviews.
+
         </p>
       </div>
 
@@ -178,7 +178,7 @@ export default function Insights({ reviewsData }) {
             </div>
             <h3 className="text-xs font-bold text-gray-800">No digest available</h3>
             <p className="text-[11px] text-gray-700 max-w-sm mx-auto mt-1.5 leading-relaxed">
-              Analyze reviews using the Review Analyzer to generate an AI-powered digest.
+
             </p>
           </div>
         ) : (
@@ -189,7 +189,7 @@ export default function Insights({ reviewsData }) {
               </div>
               <div className="space-y-1">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
-                  AI-Generated Summary · {validReviews.length} reviews analyzed
+                  Summary · {validReviews.length} reviews analyzed
                 </div>
                 <p className="text-sm text-[#374151] leading-relaxed font-normal">
                   "{digest}"
@@ -208,11 +208,10 @@ export default function Insights({ reviewsData }) {
             <h2 className="text-sm font-bold uppercase tracking-wider text-[#111827]">Historical Trend Analytics</h2>
           </div>
           {trendSummary && (
-            <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-bold border ${
-              trendSummary.color === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+            <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-bold border ${trendSummary.color === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
               trendSummary.color === 'rose' ? 'bg-rose-50 border-rose-200 text-rose-700' :
-              'bg-gray-100 border-gray-200 text-gray-700'
-            }`}>
+                'bg-gray-100 border-gray-200 text-gray-700'
+              }`}>
               <trendSummary.icon size={12} />
               <span>{trendSummary.diff} · {trendSummary.label}</span>
             </div>
@@ -268,21 +267,21 @@ export default function Insights({ reviewsData }) {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trends} margin={{ top: 10, right: 15, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
                       tick={{ fill: '#374151', fontSize: 10, fontWeight: 600 }}
                     />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
                       allowDecimals={false}
                       domain={[0, 100]}
                       tickFormatter={(value) => `${value}%`}
                       tick={{ fill: '#374151', fontSize: 10, fontWeight: 600 }}
                     />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{
                         fontSize: '11px',
                         backgroundColor: '#ffffff',
@@ -292,38 +291,38 @@ export default function Insights({ reviewsData }) {
                       }}
                       formatter={(value, name) => [`${value}%`, name]}
                     />
-                    <Legend 
-                      verticalAlign="top" 
-                      height={36} 
-                      iconType="circle" 
+                    <Legend
+                      verticalAlign="top"
+                      height={36}
+                      iconType="circle"
                       iconSize={8}
                       wrapperStyle={{ fontSize: '10px', fontWeight: 600, color: '#374151' }}
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="positivePct" 
-                      stroke="#10b981" 
-                      strokeWidth={3} 
+                    <Line
+                      type="monotone"
+                      dataKey="positivePct"
+                      stroke="#10b981"
+                      strokeWidth={3}
                       dot={{ r: 4, fill: '#10b981' }}
-                      activeDot={{ r: 6 }} 
+                      activeDot={{ r: 6 }}
                       name="Positive %"
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="neutralPct" 
-                      stroke="#FFB703" 
-                      strokeWidth={2} 
+                    <Line
+                      type="monotone"
+                      dataKey="neutralPct"
+                      stroke="#FFB703"
+                      strokeWidth={2}
                       dot={{ r: 3, fill: '#FFB703' }}
-                      activeDot={{ r: 5 }} 
+                      activeDot={{ r: 5 }}
                       name="Neutral %"
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="negativePct" 
-                      stroke="#f43f5e" 
-                      strokeWidth={2} 
+                    <Line
+                      type="monotone"
+                      dataKey="negativePct"
+                      stroke="#f43f5e"
+                      strokeWidth={2}
                       dot={{ r: 3, fill: '#f43f5e' }}
-                      activeDot={{ r: 5 }} 
+                      activeDot={{ r: 5 }}
                       name="Negative %"
                     />
                   </LineChart>
@@ -333,33 +332,30 @@ export default function Insights({ reviewsData }) {
 
             {/* Trend Summary Card */}
             {trendSummary && (
-              <div className={`p-4 rounded-xl border flex items-center justify-between ${
-                trendSummary.color === 'emerald' ? 'bg-emerald-50 border-emerald-200' :
+              <div className={`p-4 rounded-xl border flex items-center justify-between ${trendSummary.color === 'emerald' ? 'bg-emerald-50 border-emerald-200' :
                 trendSummary.color === 'rose' ? 'bg-rose-50 border-rose-200' :
-                'bg-gray-50 border-gray-200'
-              }`}>
+                  'bg-gray-50 border-gray-200'
+                }`}>
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-wider text-gray-700 mb-1">Trend Summary</div>
-                  <div className={`text-sm font-black ${
-                    trendSummary.color === 'emerald' ? 'text-emerald-700' :
+                  <div className={`text-sm font-black ${trendSummary.color === 'emerald' ? 'text-emerald-700' :
                     trendSummary.color === 'rose' ? 'text-rose-700' :
-                    'text-gray-700'
-                  }`}>
+                      'text-gray-700'
+                    }`}>
                     Positive Trend {trendSummary.diff}
                   </div>
                   <div className="text-xs text-gray-700 font-medium mt-0.5">
-                    Comparing Session 1 ({trends[0]?.positivePct}%) → Session {trends.length} ({trends[trends.length-1]?.positivePct}%)
+                    Comparing Session 1 ({trends[0]?.positivePct}%) → Session {trends.length} ({trends[trends.length - 1]?.positivePct}%)
                   </div>
                 </div>
-                <div className={`p-3 rounded-lg ${
-                  trendSummary.color === 'emerald' ? 'bg-emerald-100' :
+                <div className={`p-3 rounded-lg ${trendSummary.color === 'emerald' ? 'bg-emerald-100' :
                   trendSummary.color === 'rose' ? 'bg-rose-100' :
-                  'bg-gray-100'
-                }`}>
+                    'bg-gray-100'
+                  }`}>
                   <trendSummary.icon size={24} className={
                     trendSummary.color === 'emerald' ? 'text-emerald-600' :
-                    trendSummary.color === 'rose' ? 'text-rose-600' :
-                    'text-gray-600'
+                      trendSummary.color === 'rose' ? 'text-rose-600' :
+                        'text-gray-600'
                   } />
                 </div>
               </div>

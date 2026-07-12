@@ -1,11 +1,11 @@
 import React from 'react';
-import { 
-  BookOpen, 
-  Smile, 
-  Meh, 
-  Frown, 
-  Tag, 
-  Layers, 
+import {
+  BookOpen,
+  Smile,
+  Meh,
+  Frown,
+  Tag,
+  Layers,
   FileText,
   Play,
   ArrowRight,
@@ -31,11 +31,11 @@ export default function Help({ setTab, setPreloadedText }) {
       {/* Page Header */}
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-semibold uppercase tracking-wider text-gray-700">Documentation</span>
+
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-[#111827] md:text-3xl">Help & Documentation</h1>
         <p className="mt-2 text-[#374151] text-sm md:text-base leading-relaxed">
-          Learn how to use StaySense AI to automate classification, analyze guest sentiments, and generate professional responses.
+
         </p>
       </div>
 
@@ -76,7 +76,7 @@ export default function Help({ setTab, setPreloadedText }) {
             <div className="p-3 bg-slate-50 border border-slate-200/50 rounded-md">
               <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Example Textarea Input Layout:</span>
               <pre className="text-[10px] text-slate-700 font-mono leading-normal whitespace-pre-wrap">
-{`The host was extremely friendly and helped us carry luggage.
+                {`The host was extremely friendly and helped us carry luggage.
 The breakfast options were limited and cold.
 Perfect location near the waterfall.`}
               </pre>
@@ -93,7 +93,7 @@ Perfect location near the waterfall.`}
                 <FileText size={16} className="text-slate-500" />
                 <span>Example Test Reviews</span>
               </h2>
-              <button 
+              <button
                 onClick={handleTryExamples}
                 className="flex items-center gap-1 text-[10px] font-semibold text-slate-900 hover:text-slate-700 hover:underline transition-all"
               >

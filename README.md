@@ -2,8 +2,12 @@
 
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D%2018.0.0-blue.svg?style=flat-square&logo=node.js)](https://nodejs.org/)
 [![React Version](https://img.shields.io/badge/react-%5E19.2.6-61dafb.svg?style=flat-square&logo=react)](https://react.dev/)
+[![Vite Version](https://img.shields.io/badge/vite-%5E6.0.0-646cff.svg?style=flat-square&logo=vite)](https://vite.dev/)
 [![Express Version](https://img.shields.io/badge/express-%5E4.21.2-lightgrey.svg?style=flat-square&logo=express)](https://expressjs.com/)
 [![MongoDB Version](https://img.shields.io/badge/mongodb-atlas-green.svg?style=flat-square&logo=mongodb)](https://www.mongodb.com/atlas)
+[![JWT](https://img.shields.io/badge/JWT-authentication-black.svg?style=flat-square&logo=json-web-tokens)](https://jwt.io/)
+[![Passport.js](https://img.shields.io/badge/passport.js-oauth-blueviolet.svg?style=flat-square&logo=passport)](https://www.passportjs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/tailwindcss-%5E3.0.0-38b2ac.svg?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
 [![AI Engine](https://img.shields.io/badge/groq%20api-llama%203.3%2070b-orange.svg?style=flat-square)](https://groq.com/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](./LICENSE)
 
@@ -25,6 +29,13 @@ StaySense AI is an enterprise-grade, production-ready **Guest Review Intelligenc
 *   **🔔 Live Notification System:** Modern interactive toast notifications and alert read/unread states persisted to the database.
 *   **🌓 Dark/Light Theme Support:** Fully styled CSS dark and light modes leveraging standard React Context API state variables.
 *   **📤 CSV Export Utility:** One-click utility for hospitality managers to download tabular review data for external reporting or auditing.
+*   **🔑 JWT Authentication:** Secure user registration, authentication token management, and session isolation.
+*   **🌐 Google OAuth:** "Continue with Google" integration for seamless account creation and login.
+*   **🖥️ GitHub OAuth:** "Continue with GitHub" support, providing flexible developer-friendly sign-in options.
+*   **👤 User-Specific Dashboards:** Custom-tailored experience isolating review histories, weekly summaries, AI insights, and alerts by user.
+*   **🛡️ Protected Routes & Route Guards:** Multi-layered security ensuring frontend and backend route restrictions prevent unauthorized access.
+*   **🔒 Secure Authentication:** Hashed passwords via bcrypt and strict endpoint security policies.
+*   **🏢 Multi-User Architecture:** Comprehensive database and session isolation ensuring absolute user data privacy.
 
 ---
 
@@ -565,6 +576,115 @@ Since this dashboard is an internal business tool, there is **no public registra
     ```
     *Finds any orphaned `AnalysisSession` records with no `user` field and assigns them to the first Admin user.*
 
+
+---
+
+## Authentication Features
+
+*   **✅ User Registration:**
+    *   Register with Full Name, Email, and Password.
+    *   Passwords are automatically hashed using `bcrypt` (10–12 salt rounds) before database storage.
+    *   Duplicate email protection checks prevent multiple accounts using the same email address.
+*   **✅ User Login:**
+    *   Secure authentication using credentials (email and password).
+    *   Issues JSON Web Tokens (JWT) for secure authentication.
+    *   Complete authentication token management and lifecycle validation.
+*   **✅ Logout:**
+    *   Secure logout functionality to clear user session.
+    *   Server and client-side session termination.
+*   **✅ Google OAuth Login:**
+    *   Provides "Continue with Google" access.
+    *   Automatically provisions and registers accounts for new users.
+    *   Existing users are logged in seamlessly without redundant authentication prompts.
+*   **✅ GitHub OAuth Login:**
+    *   Provides "Continue with GitHub" access.
+    *   Seamless automated onboarding for new users and instant access for registered accounts.
+*   **✅ Protected API Routes:**
+    *   Protected by a dedicated JWT verification middleware.
+    *   Unauthorized actions, missing tokens, or malformed JWTs return `HTTP 401 Unauthorized` responses.
+*   **✅ Protected Frontend Routes:**
+    *   Enforces authenticated-only routing for core workspace dashboards.
+    *   Guests and unauthenticated visitors are automatically redirected to the login page or authentication modal.
+*   **✅ User-Specific Dashboard:**
+    *   Each authenticated user has access *only* to their own isolated environment containing:
+        *   Personal review history
+        *   Personal analysis sessions
+        *   Personal AI insights
+        *   Personal alerts
+        *   Personal weekly summary
+        *   Personal dashboard data
+    *   Absolute data isolation ensures that no user can view, access, or modify another user's records.
+
+---
+
+## Security Features
+
+StaySense AI implements an enterprise-grade security model to guarantee data integrity, privacy, and protection against common vulnerability vectors:
+
+*   **bcrypt Password Hashing:** User passwords are encrypted prior to database insertion using the standard `bcrypt` algorithm with `10–12` salt rounds, protecting credentials against brute-force decrypt attempts.
+*   **JWT Authentication:** Employs stateless JSON Web Tokens signed with a strong backend secret (`JWT_SECRET`) to maintain verified client-server sessions.
+*   **Protected API Routes:** Middleware validation intercepts requests to private backend controllers, rejecting any calls lacking a valid Bearer token.
+*   **Route Guards:** Frontend wrapper components restrict dashboard visibility, ensuring the UI remains secure and isolated.
+*   **OAuth Authentication:** Delegates credentials authentication options to industry-standard providers (Google & GitHub Passport.js strategies), eliminating the need to store passwords directly for social login accounts.
+*   **MongoDB User Isolation:** Every query explicitly filters on the authenticated user's unique identifier (`req.user._id`), guaranteeing absolute database-level multi-tenant isolation.
+*   **Environment Variable Protection:** Strictly manages passwords, credentials, tokens, and APIs using non-committed `.env` configurations.
+*   **Secure Authentication Flow:** Incorporates structured token issuance, secure cookies or header-based verification, and graceful session cleanup during logout.
+*   **Input Validation:** The backend schema enforces strict parameters on reviews, email patterns, and input length, preventing cross-site scripting (XSS) and NoSQL inject attempts.
+*   **Rate Limiting on Authentication Endpoints:** Restricts requests to register/login paths to mitigate credential stuffing and automated denial-of-service attempts.
+
+---
+
+## Authentication API
+
+All authentication endpoints are documented below. Protected endpoints require the client to supply the signed JWT inside the `Authorization` header.
+
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/register` | Registers a new user account with Name, Email, and Password. | No |
+| `POST` | `/api/auth/login` | Validates credentials and returns a secure JWT. | No |
+| `POST` | `/api/auth/logout` | Terminates session, invalidates/clears auth states. | Yes |
+| `GET` | `/api/auth/google` | Initiates the Google OAuth login flow. | No |
+| `GET` | `/api/auth/google/callback` | Callback URL handled by passport for Google authentication. | No |
+| `GET` | `/api/auth/github` | Initiates the GitHub OAuth login flow. | No |
+| `GET` | `/api/auth/github/callback` | Callback URL handled by passport for GitHub authentication. | No |
+
+> [!IMPORTANT]
+> Protected endpoints require a valid JSON Web Token in the header:
+> ```http
+> Authorization: Bearer <JWT>
+> ```
+
+---
+
+## Authentication Flow
+
+The diagram below maps the interaction cycle for guest registration, login, token issuance, and resource authorization:
+
+```mermaid
+graph TD
+    Guest --> Dashboard
+    Dashboard --> AuthModal["Authentication Modal"]
+    AuthModal --> Register["Register / Login / Google / GitHub"]
+    Register --> JWTIssued["JWT Issued"]
+    JWTIssued --> DashboardAccess["Dashboard Access"]
+    DashboardAccess --> ProtectedFeatures["Protected Features"]
+    ProtectedFeatures --> Logout
+```
+
+---
+
+## Week 6 Deliverables Completed
+
+- [x] Register implemented
+- [x] Login implemented
+- [x] Logout implemented
+- [x] JWT Protected APIs
+- [x] Protected Frontend Routes
+- [x] Google OAuth
+- [x] GitHub OAuth
+- [x] Rate Limiting
+- [x] Input Validation
+- [x] bcrypt Password Hashing
 
 ---
 
